@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+dist/
+build/
+
+# Tooling caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Local secrets (絶対にコミットしない)
+.env
+credentials.json
+gmail_oauth.json
+
+# Editor/OS
+.DS_Store
+.idea/
+.vscode/
