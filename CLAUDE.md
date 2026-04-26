@@ -28,6 +28,7 @@ morning-brief/
 ├── CLAUDE.md                       # このファイル
 ├── README.md                       # OSS 読み手向け (Sprint 1 終盤に作成)
 ├── pyproject.toml                  # uv 管理
+├── justfile                        # コマンドランナー (just)
 ├── modal_app.py                    # Modal エントリ (cron + function)
 ├── src/digest/
 │   ├── __init__.py
@@ -45,7 +46,6 @@ morning-brief/
 │   ├── summarize_prompt.md         # 要約プロンプト初期版
 │   └── user_initial.md             # USER.md 初期コンテンツ
 ├── scripts/
-│   ├── check.sh                    # 層1+3 一括検証
 │   ├── bootstrap_oauth.py          # 初回 Gmail refresh_token 取得 (ローカル実行)
 │   └── weekly_report.py            # 層4 学習観察レポート (Sprint 2)
 ├── tests/
@@ -67,7 +67,7 @@ morning-brief/
 
 ## やってはいけないこと
 
-1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット前に `gitleaks` 相当のチェックが入る (`scripts/check.sh`)。
+1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット前に `gitleaks` 相当のチェックが入る (`just secrets`、T1.12 残部分で追加予定)。
 2. **Notifier 抽象を飛ばさない**: `slack_sdk` の import は `src/digest/notifiers/slack.py` 以外で禁止。アーキテクチャテストで検出する。
 3. **Hermes の永続状態に直接書き込まない**: `~/.hermes/` は Modal Volume 経由でのみアクセス。`hermes_bridge.py` を介す。
 4. **プロンプトをコードにベタ書きしない**: 全プロンプトは `seeds/*.md` から読み込む。
@@ -79,27 +79,33 @@ morning-brief/
 ## 開発コマンド
 
 ```bash
+# ツールのインストール (初回のみ)
+brew install just
+
 # 依存セットアップ
-uv sync
+just sync
 
 # Lint / Format / Type
-uv run ruff check .
-uv run ruff format .
-uv run mypy src/
+just lint          # ruff check
+just fmt-check     # ruff format --check
+just type          # mypy
 
 # テスト
-uv run pytest tests/unit/                       # 高速、外部依存なし
-uv run pytest tests/integration/ -m "not external"  # モック前提の統合
-uv run pytest tests/architecture/               # 設計遵守
+just test          # ユニットテスト (高速、外部依存なし)
+just test-int      # 統合テスト (モック前提)
+just test-arch     # 設計遵守テスト
 
 # 一括検証 (コミット前に必ず実行)
-./scripts/check.sh
+just check
+
+# ターゲット一覧
+just
 
 # Modal でのドライラン (送信せず最終 Markdown を stdout に出す)
-modal run modal_app.py::digest_job --dry-run
+just dry-run
 
 # Modal 本番実行 (手動トリガ)
-modal run modal_app.py::digest_job
+just run
 ```
 
 ## 検証ルーチン
@@ -107,13 +113,14 @@ modal run modal_app.py::digest_job
 コミット前に必ず以下を実行:
 
 ```bash
-./scripts/check.sh
+just check
 ```
 
 これは以下を実行します(詳細は `docs/quality.md`):
 
 - 層1: ruff (lint + format), mypy (型), pytest (unit + integration)
-- 層3: アーキテクチャテスト (境界破り検出、秘匿情報検出)
+- 層3: アーキテクチャテスト (境界破り検出)
+- secrets check: `just secrets` として別途追加予定 (T1.12 残部分)
 
 各タスクの完了判定は `docs/tasks.md` の Given-When-Then 形式の受入条件で行います。**受入条件を満たすテストが通るまで、そのタスクは「完了」ではありません**。「動いた」「実装した」だけでは不十分です。
 

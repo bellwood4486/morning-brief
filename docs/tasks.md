@@ -13,8 +13,8 @@
 - 平日朝 06:30 JST に `#newsletter-digest` にダイジェストが自動投稿される。
 - ダイジェストは TL;DR + 詳細の 2 段構え。
 - 各記事ブロックに 👍/👎/🔥 リアクション促し + ミュートボタンが付いている。
-- リポジトリに秘匿情報が含まれていない (`scripts/check.sh` の gitleaks チェックがグリーン)。
-- `./scripts/check.sh` 全体がグリーン。
+- リポジトリに秘匿情報が含まれていない (`just secrets` がグリーン、T1.12 残部分で追加予定)。
+- `just check` 全体がグリーン。
 
 ### タスク一覧
 
@@ -224,23 +224,16 @@ class Notifier(Protocol):
 - Then: ファイル内容が文字列で取得できる
 - And: agent-design.md にこれら seed の方針が文書化されている (Sprint 1 終盤の T1.13 で対応)
 
-#### T1.12 検証スクリプトと CI 用 hook
+#### T1.12 コマンドランナーと secrets check
 
-**作業**: `scripts/check.sh`。
+**作業**: `justfile` (コマンドランナー) + secrets check (gitleaks 相当)。
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-uv run ruff format --check .
-uv run ruff check .
-uv run mypy src/
-uv run pytest tests/unit/ tests/integration/ tests/architecture/ -m "not external"
-# gitleaks 相当 (シェルで簡易実装、または gitleaks バイナリを使う)
-```
+- (済) `justfile`: ruff / mypy / pytest を just ターゲットに集約。`just check` で一括実行。
+- (未) secrets check: gitleaks バイナリまたは grep フォールバックで API キー風文字列を検出。`just secrets` ターゲットとして追加予定。
 
 **受入条件**:
 - Given: 変更がない健全な状態
-- When: `./scripts/check.sh` を実行
+- When: `just check` を実行
 - Then: 全て通り終了コード 0
 
 #### T1.13 ドキュメント (agent-design.md, setup.md)
@@ -281,7 +274,7 @@ T1.1 (setup)
   │    ├─ T1.8 (formatter)
   │    └─ T1.9 (hermes_bridge)
   │         └─ T1.10 (modal_app) ←── 全部の合流点
-  ├─ T1.12 (check.sh) (並行可能)
+  ├─ T1.12 (justfile + secrets) (並行可能)
   └─ T1.13, T1.14 (docs) (T1.10 完了後)
 ```
 
