@@ -1,0 +1,14 @@
+gmail:
+  label: "Newsletter/Tech"
+  processed_label: "Newsletter/Tech/Processed"
+  lookback_hours: 24
+
+slack:
+  digest_channel: "#newsletter-digest"
+  alerts_channel: "#alerts"
+
+llm:
+  model: "gemini-2.5-flash"
+
+schedule:
+  cron: "30 21 * * 1-5"  # 06:30 JST, weekdays
