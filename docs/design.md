@@ -276,7 +276,7 @@ hermes_bridge.observe_session(session_log)
 
 - 型ヒントは厳格に書く (`mypy --strict` 相当)。
 - ドメインモデルは `src/digest/models.py` に集約 (`Email`, `Digest`, `TldrItem`, `DetailItem`, `Feedback`, `PostedMessage`)。
-- dataclass か pydantic は実装時に Claude Code が決めてよい。決めたらこの section に追記する。
+- ドメインモデルは pydantic v2 `BaseModel` を採用。共通基底 `_StrictModel` に `extra="forbid"`, `frozen=True`, `str_strip_whitespace=True` を集約。`datetime` は aware UTC のみ許可 (naive は `ValidationError`)。永続化やシリアライズは `model_dump_json()` / `model_validate_json()` で行う。
 - 関数名は動詞始まり (`fetch_unread`, `summarize`, `to_block_kit`)。
 - Phase の関数は副作用を持つので、戻り値を持つ関数 (純粋寄り) と分けて意図を表現する。
 
