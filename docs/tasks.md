@@ -18,6 +18,25 @@
 
 ### タスク一覧
 
+#### 進捗
+
+- [x] T1.1 プロジェクトセットアップ
+- [ ] T1.2 ドメインモデル定義
+- [ ] T1.3 Notifier Protocol
+- [ ] T1.4 Slack Notifier 実装
+- [ ] T1.5 Gmail クライアント (受信 + 処理済みラベル)
+- [ ] T1.6 OAuth bootstrap スクリプト
+- [ ] T1.7 要約モジュール (Gemini)
+- [ ] T1.8 Block Kit フォーマッタ
+- [ ] T1.9 Hermes Bridge (最小実装)
+- [ ] T1.10 Modal アプリ本体
+- [ ] T1.11 Seeds 初期版
+- [ ] T1.12 検証スクリプトと CI 用 hook
+- [ ] T1.13 ドキュメント (agent-design.md, setup.md)
+- [ ] T1.14 README.md
+
+---
+
 #### T1.1 プロジェクトセットアップ
 
 **作業**:
@@ -283,11 +302,13 @@ T1.1 (setup)
 
 ### タスク (概要、Sprint 1 完了後に詳細化)
 
-- T2.1 `feedback.collect_from_slack` 完全実装 (リアクション + ボタン + スレッド返信を統合)
-- T2.2 Hermes へのフィードバック反映ロジック (`hermes_bridge.inject_feedback` の本実装)
-- T2.3 Hermes のスキル自動生成を観察するためのログ収集
-- T2.4 `scripts/weekly_report.py` (USER.md 差分、スキル数推移、フィードバック統計、コスト)
-- T2.5 `docs/observation.md` への観察ログ蓄積 (運用フェーズ)
+#### 進捗
+
+- [ ] T2.1 `feedback.collect_from_slack` 完全実装 (リアクション + ボタン + スレッド返信を統合)
+- [ ] T2.2 Hermes へのフィードバック反映ロジック (`hermes_bridge.inject_feedback` の本実装)
+- [ ] T2.3 Hermes のスキル自動生成を観察するためのログ収集
+- [ ] T2.4 `scripts/weekly_report.py` (USER.md 差分、スキル数推移、フィードバック統計、コスト)
+- [ ] T2.5 `docs/observation.md` への観察ログ蓄積 (運用フェーズ)
 
 ### Sprint 2 完了基準
 - HITL フィードバックが Hermes に反映される経路が動いている。
@@ -303,9 +324,11 @@ T1.1 (setup)
 ### タスク (概要、選択式)
 以下のうち 1 つを選んで実装:
 
-- 候補 A: Telegram 通知追加 (`TelegramNotifier`)
-- 候補 B: 別ソース追加 (RSS フィード等。`Source` Protocol を抽出するリファクタを伴う)
-- 候補 C: 別エージェント追加 (カレンダー朝サマリ。同 workspace の別 channel)
+#### 進捗
+
+- [ ] 候補 A: Telegram 通知追加 (`TelegramNotifier`)
+- [ ] 候補 B: 別ソース追加 (RSS フィード等。`Source` Protocol を抽出するリファクタを伴う)
+- [ ] 候補 C: 別エージェント追加 (カレンダー朝サマリ。同 workspace の別 channel)
 
 ### Sprint 3 完了基準
 - 選んだ拡張が、コア (`modal_app.py`, 各 Phase の制御フロー) を変更せずに動いている。
