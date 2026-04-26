@@ -21,8 +21,8 @@
 #### 進捗
 
 - [x] T1.1 プロジェクトセットアップ
-- [ ] T1.2 ドメインモデル定義
-- [ ] T1.3 Notifier Protocol
+- [x] T1.2 ドメインモデル定義
+- [x] T1.3 Notifier Protocol
 - [ ] T1.4 Slack Notifier 実装
 - [ ] T1.5 Gmail クライアント (受信 + 処理済みラベル)
 - [ ] T1.6 OAuth bootstrap スクリプト
