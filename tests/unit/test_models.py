@@ -15,6 +15,7 @@ from digest.models import (
 _NOW = datetime(2024, 1, 1, 6, 30, 0, tzinfo=UTC)
 
 
+# 責務: 有効な Email のデフォルトを返すファクトリ。テストは差分だけ kwargs で上書きする。
 def _email(**kwargs: object) -> Email:
     defaults: dict[str, object] = {
         "id": "msg001",
@@ -27,6 +28,7 @@ def _email(**kwargs: object) -> Email:
     return Email(**defaults)  # type: ignore[arg-type]
 
 
+# 責務: 有効な TldrItem のデフォルトを返すファクトリ。
 def _tldr() -> TldrItem:
     return TldrItem(
         title_ja="タイトル",
@@ -36,6 +38,7 @@ def _tldr() -> TldrItem:
     )
 
 
+# 責務: 有効な DetailItem のデフォルトを返すファクトリ。
 def _detail() -> DetailItem:
     return DetailItem(
         sender="newsletter@example.com",
@@ -72,6 +75,7 @@ def test_email_extra_field_rejected() -> None:
 
 
 def test_email_frozen() -> None:
+    """frozen=True により属性への代入が ValidationError になることを確認。"""
     email = _email()
     with pytest.raises(ValidationError):
         email.id = "other"  # type: ignore[misc]
@@ -137,6 +141,7 @@ def test_digest_naive_datetime_rejected() -> None:
 # --- Feedback ---
 
 
+# 学習: parametrize は同じテストロジックを複数入力で回す。Literal の許容値を網羅するのに使う。
 @pytest.mark.parametrize("kind", ["reaction", "button", "thread_reply"])
 def test_feedback_kind_literal(kind: str) -> None:
     fb = Feedback(kind=kind, target_email_id="msg001", value="👍")  # type: ignore[arg-type]

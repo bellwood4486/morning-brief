@@ -1,4 +1,4 @@
-from __future__ import annotations
+from __future__ import annotations  # 型ヒントを文字列扱いにして前方参照を可能にする (PEP 563)
 
 from datetime import datetime
 from typing import Any, Literal
@@ -6,10 +6,14 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, field_validator
 
 
+# 全ドメインモデルの共通制約のシングルソース。継承により全モデルに適用される。
 class _StrictModel(BaseModel):
+    # extra="forbid": 未知フィールドを拒否。
+    # frozen=True: イミュータブル化で誤代入を ValidationError にできる。
     model_config = ConfigDict(extra="forbid", frozen=True, str_strip_whitespace=True)
 
 
+# 責務: datetime が tz-aware か検証する共通バリデータ。各モデルの field_validator から呼ぶ。
 def _check_aware(v: datetime) -> datetime:
     if v.tzinfo is None:
         raise ValueError("datetime must be timezone-aware (UTC)")
@@ -17,6 +21,8 @@ def _check_aware(v: datetime) -> datetime:
 
 
 class Email(_StrictModel):
+    """1通の取り込み対象メール。"""
+
     id: str
     sender: str
     subject: str
@@ -25,6 +31,7 @@ class Email(_StrictModel):
     received_at: datetime
     links: list[str] = []
 
+    # @classmethod とセットなのは Pydantic v2 の規約 (cls を受け、フィールド値を返す)
     @field_validator("received_at")
     @classmethod
     def _received_at_aware(cls, v: datetime) -> datetime:
@@ -32,6 +39,8 @@ class Email(_StrictModel):
 
 
 class TldrItem(_StrictModel):
+    """TL;DR ブロックの1項目。"""
+
     title_ja: str
     summary_ja: str
     source_url: str
@@ -39,6 +48,8 @@ class TldrItem(_StrictModel):
 
 
 class DetailItem(_StrictModel):
+    """詳細ブロックの1メール分。"""
+
     sender: str
     subject_ja: str
     points: list[str]
@@ -48,6 +59,8 @@ class DetailItem(_StrictModel):
 
 
 class Digest(_StrictModel):
+    """1回の配信バッチで生成する要約全体。"""
+
     tldr_items: list[TldrItem]
     details: list[DetailItem]
     generated_at: datetime
@@ -59,6 +72,9 @@ class Digest(_StrictModel):
 
 
 class Feedback(_StrictModel):
+    """ユーザーが配信メッセージに残したフィードバック。"""
+
+    # Literal は値そのものを型にする。enum より軽量で Pydantic と相性良い。
     kind: Literal["reaction", "button", "thread_reply"]
     target_email_id: str
     value: str
@@ -66,6 +82,8 @@ class Feedback(_StrictModel):
 
 
 class PostedMessage(_StrictModel):
+    """Notifier が投稿したメッセージの識別情報。"""
+
     channel: str
     message_id: str
     posted_at: datetime

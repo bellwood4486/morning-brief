@@ -124,6 +124,11 @@ modal run modal_app.py::digest_job
 - **ドメインモデル**: dataclass または pydantic。`Email`, `Digest`, `DigestItem`, `Feedback` などの型を `src/digest/models.py` に集約。
 - **エラー処理**: 各 Phase は独立して失敗可能にする。Phase 2 (Gmail 取得) が空でも Phase 4 (Slack 送信) は「本日は対象メールなし」を投稿する。silent failure を起こさない。
 - **ロギング**: 標準 `logging`。Modal の stdout に流す。
+- **コメント方針**:
+  1. 責務が暗黙になりがちな箇所 (共通基底クラス、ファクトリ、設計境界、設計遵守テスト) には責務を 1 行で書く。
+  2. Python 固有の慣習・テクニック (`Protocol`, `Literal`, `field_validator`, `parametrize` 等) は初出位置に 1 回だけ学習用コメントを添える。同じパターンが続く箇所には書かない。
+  3. 関数/メソッドの docstring に内部実装を書かない。利用側が知る必要のない情報 (内部 retry、例外の種類、設定値の詳細) は除外する。利用側が必ず知る必要があるなら、それは設計ミスのサインなので docstring を増やすのではなく設計を見直す。
+  4. コメント・docstring は日本語で書く。
 
 ## 迷ったとき
 
