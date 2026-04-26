@@ -74,7 +74,7 @@ morning-brief/
 5. **Vertex AI を使わない**: Gemini API 直叩き (`google-genai` SDK) で統一。理由は ADR-003。
 6. **送信に Gmail を使わない**: Gmail API は受信専用。配信は Slack 経由 (将来 Notifier 追加で拡張)。
 7. **常駐サーバ前提の機能を使わない**: Slack Socket Mode、Hermes 自前 cron は不可。Modal Cron が唯一の起点。
-8. **暗黙の決定をしない**: 設計に書かれていない判断が必要になったら、実装する前に ユーザー に確認する。
+8. **暗黙の決定をしない**: 設計に書かれていない判断が必要になったら、実装する前に確認を取る。
 
 ## 開発コマンド
 
@@ -131,4 +131,4 @@ modal run modal_app.py::digest_job
 - 何をするか → `docs/tasks.md` (現在の Sprint)
 - 機能要件・非機能要件 → `docs/requirements.md`
 - どう検証するか → `docs/quality.md`
-- 上記に書かれていない判断は、暗黙にせず ユーザー に確認する
+- 上記に書かれていない判断は、暗黙にせず確認を取る

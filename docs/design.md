@@ -102,7 +102,7 @@
 - 永続化されない、リポジトリに置く初期データ
 - `newsletter_digest.md`: agentskills.io 形式のスキル定義
 - `summarize_prompt.md`: 要約プロンプト初期版
-- `user_initial.md`: USER.md の初期コンテンツ (ユーザー の興味分野・読み方の癖)
+- `user_initial.md`: USER.md の初期コンテンツ (ユーザーの興味分野・読み方の癖)
 
 ## 3. データフロー (Phase 詳細)
 
@@ -160,7 +160,6 @@ hermes_bridge.observe_session(session_log)
 - ambient agent + serverless persistence というパラダイムを学ぶこと自体に価値がある。Modal Volume のハイバネート/起き上がりの体験は他で得にくい。
 - アイドル中のコストがほぼゼロ。Modal の無料枠で完結する見込み。
 - Hermes が Modal をネイティブバックエンドとしてサポートしている。
-
 
 **トレードオフ**:
 - GCP との統合の自然さは Cloud Run より低い (Vertex AI を使わない判断と表裏 / ADR-003 参照)。
@@ -228,7 +227,7 @@ hermes_bridge.observe_session(session_log)
 
 **理由**:
 - 状態管理を Gmail に寄せると、Modal Volume に状態を持たない/減らせる。
-- 何が処理済みかを ユーザー が Gmail UI から直接確認・修正できる (デバッグ性)。
+- 何が処理済みかを Gmail UI から直接確認・修正できる (デバッグ性)。
 - ラベル付与は Gmail API で 1 コール。
 
 ### ADR-008: スケジュールは Modal Cron が起点 (Hermes 自前 cron は使わない)

@@ -216,7 +216,7 @@ class Notifier(Protocol):
 - `seeds/newsletter_digest.md`: agentskills.io 形式のスキル定義
 - `seeds/user_initial.md`: USER.md の初期コンテンツ
 
-**注記**: これらの初期版は ユーザー が叩き台を書く想定。Claude Code はテンプレを用意し、ユーザー がレビュー・修正する。
+**注記**: これらの初期版はユーザーが叩き台を書く想定。Claude Code はテンプレを用意し、ユーザーがレビュー・修正する。
 
 **受入条件**:
 - Given: 3 ファイルが存在する
@@ -252,7 +252,7 @@ uv run pytest tests/unit/ tests/integration/ tests/architecture/ -m "not externa
 **受入条件**:
 - Given: 別 PC でこのリポジトリを clone
 - When: `docs/setup.md` の手順に沿って進める
-- Then: 詰まるポイントなく Sprint 1 完了基準まで再現できる (実機検証は実装後に ユーザー が行う)
+- Then: 詰まるポイントなく Sprint 1 完了基準まで再現できる (実機検証は実装後にユーザーが行う)
 
 #### T1.14 README.md
 
