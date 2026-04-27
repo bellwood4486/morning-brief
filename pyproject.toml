@@ -62,6 +62,7 @@ reportUnknownArgumentType = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["scripts"]
 markers = [
     "external: tests requiring real external API access (skipped by default in CI)",
 ]
