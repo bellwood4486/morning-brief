@@ -5,11 +5,13 @@
 ## Sprint 1: MVP (動くものを作る)
 
 ### 目的
+
 - 通勤時のダイジェスト読書を成立させる。
 - Modal / Hermes / Gemini / Slack / Gmail の結線を確認する。
 - HITL は最小限 (リアクション/ボタンの収集経路が動くところまで。Hermes への反映は Sprint 2)。
 
 ### Sprint 1 完了基準 (全体)
+
 - 平日朝 06:30 JST に `#newsletter-digest` にダイジェストが自動投稿される。
 - ダイジェストは TL;DR + 詳細の 2 段構え。
 - 各記事ブロックに 👍/👎/🔥 リアクション促し + ミュートボタンが付いている。
@@ -135,7 +137,7 @@ class Notifier(Protocol):
 - When: `uv run python scripts/bootstrap_oauth.py` を実行
 - Then: ブラウザが開いて OAuth 認可フローが走る
 - And: 完了後 `gmail_oauth.json` がカレントに生成される
-- And: stdout に `modal secret create gmail-oauth ... ` のコマンドが表示される
+- And: stdout に `modal secret create gmail-oauth ...` のコマンドが表示される
 
 #### T1.7 要約モジュール (Gemini)
 
@@ -264,7 +266,7 @@ class Notifier(Protocol):
 
 ### Sprint 1 タスク間の依存関係
 
-```
+```text
 T1.1 (setup)
   ├─ T1.2 (models)
   │    ├─ T1.3 (Notifier Protocol)
@@ -279,6 +281,7 @@ T1.1 (setup)
 ```
 
 ### Sprint 1 着手順
+
 推奨順 (依存と難易度を考慮):
 
 1. T1.1 → T1.2 → T1.3 → T1.4 (配信側を先に固める)
@@ -291,6 +294,7 @@ T1.1 (setup)
 ## Sprint 2: HITL ループ + ambient agent 観察
 
 ### 目的 (学習目的の本丸)
+
 フィードバックが Hermes の USER.md / skill に反映されるサイクルを作り、観察する。
 
 ### タスク (概要、Sprint 1 完了後に詳細化)
@@ -304,6 +308,7 @@ T1.1 (setup)
 - [ ] T2.5 `docs/observation.md` への観察ログ蓄積 (運用フェーズ)
 
 ### Sprint 2 完了基準
+
 - HITL フィードバックが Hermes に反映される経路が動いている。
 - `docs/observation.md` に 2 週間以上の観察ログがある。
 - `scripts/weekly_report.py` が日曜に Slack へ自動投稿する。
@@ -312,9 +317,11 @@ T1.1 (setup)
 ## Sprint 3: 拡張性検証
 
 ### 目的
+
 `Notifier` 抽象が機能していることを実地検証する。
 
 ### タスク (概要、選択式)
+
 以下のうち 1 つを選んで実装:
 
 #### 進捗
@@ -324,5 +331,6 @@ T1.1 (setup)
 - [ ] 候補 C: 別エージェント追加 (カレンダー朝サマリ。同 workspace の別 channel)
 
 ### Sprint 3 完了基準
+
 - 選んだ拡張が、コア (`modal_app.py`, 各 Phase の制御フロー) を変更せずに動いている。
 - 拡張作業のログが `docs/observation.md` または別ファイルに残り、抽象が機能したか・しなかったかの評価がある。

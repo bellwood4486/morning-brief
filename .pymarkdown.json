@@ -1,0 +1,7 @@
+{
+  "plugins": {
+    "line-length": { "enabled": false },
+    "no-inline-html": { "enabled": false },
+    "no-duplicate-heading": { "enabled": false }
+  }
+}

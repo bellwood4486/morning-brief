@@ -37,8 +37,12 @@ test-int:
 test-arch:
     uv run pytest tests/architecture/
 
+# markdown lint
+md-lint:
+    uv run pymarkdown -c .pymarkdown.json scan --recurse --respect-gitignore .
+
 # 一括検証 (commit 前に必ず実行)
-check: lint fmt-check type test test-arch
+check: lint fmt-check type test test-arch md-lint
 
 # Modal ドライラン (送信せず最終 Markdown を stdout に出す)
 dry-run:

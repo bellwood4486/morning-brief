@@ -2,7 +2,7 @@
 
 ## 1. アーキテクチャ概要
 
-```
+```text
 ┌────────────────────────────────────────────────────────────────────┐
 │  Modal Cron (21:30 UTC = 06:30 JST, 平日のみ)                       │
 └────────────────────────────────────────────────────────────────────┘
@@ -57,6 +57,7 @@
 ## 2. コンポーネントの責務
 
 ### 2.1 `modal_app.py`
+
 - Modal の cron デコレータでスケジュール定義
 - Modal Image (依存パッケージ) の宣言
 - Modal Volume / Secrets のマウント
@@ -66,39 +67,46 @@
 ここはオーケストレータ。ロジックは持たない。各モジュールを呼ぶだけ。
 
 ### 2.2 `src/digest/gmail_client.py`
+
 - `fetch_unread(label, since) -> list[Email]`
 - `mark_processed(emails)` (`Newsletter/Tech/Processed` ラベル付与)
 - 受信専用。送信機能は実装しない。
 - Email 構造体は `models.py` に定義 (`id`, `sender`, `subject`, `body_text`, `body_html`, `received_at`, `links`)
 
 ### 2.3 `src/digest/summarize.py`
+
 - `summarize(emails) -> Digest`
 - Gemini API (`google-genai`) を呼ぶ
 - プロンプトは `seeds/summarize_prompt.md` から読み込む (ハードコード禁止)
 - Digest 構造体は `models.py` に定義 (`tldr_items: list[TldrItem]`, `details: list[DetailItem]`, `generated_at`)
 
 ### 2.4 `src/digest/formatter.py`
+
 - `to_block_kit(digest) -> list[dict]`
 - Slack Block Kit の dict リストに変換
 - リアクション促し絵文字 / ミュートボタンを各 detail block に付与
 - ボタンの `action_id` には送信元情報を埋め込む (Phase 1 で復元できるように)
 
 ### 2.5 `src/digest/notifiers/`
+
 - `base.py`: `Notifier` Protocol を定義 (`send(blocks) -> PostedMessage`, `collect_feedback(message_id) -> list[Feedback]`)
 - `slack.py`: 唯一の現状実装。`slack_sdk` の import はこのファイル限定。
 
 ### 2.6 `src/digest/feedback.py`
+
 - `collect_from_slack(yesterday_message_id) -> list[Feedback]`
 - リアクション、ボタンクリック、スレッド返信を統合した `Feedback` リストを返す
 - Hermes 側でどう扱うかはこのモジュールの関心外 (返すだけ)
 
 ### 2.7 `src/digest/hermes_bridge.py`
+
 - Hermes との橋渡し
 - `inject_feedback(feedbacks)`: フィードバックを Hermes に渡す
 - `observe_session(session_log)`: ジョブ実行ログを渡し、スキル自動生成のトリガに
 - 永続状態は Modal Volume にマウントされた `~/.hermes/` に Hermes 自身が書く
 
 ### 2.8 `seeds/`
+
 - 永続化されない、リポジトリに置く初期データ
 - `newsletter_digest.md`: agentskills.io 形式のスキル定義
 - `summarize_prompt.md`: 要約プロンプト初期版
@@ -107,7 +115,8 @@
 ## 3. データフロー (Phase 詳細)
 
 ### Phase 1: 前日フィードバック回収
-```
+
+```python
 yesterday_message_id = Hermes.get("last_digest_message_id")
 feedbacks = feedback.collect_from_slack(yesterday_message_id)
 hermes_bridge.inject_feedback(feedbacks)
@@ -116,7 +125,8 @@ hermes_bridge.inject_feedback(feedbacks)
 `yesterday_message_id` は前日 Phase 4 完了時に Hermes に保存しておく。Hermes に持たせる理由は、Modal Volume の永続化に任せられるため (別途 KV ストア不要)。
 
 ### Phase 2: メール取得
-```
+
+```python
 emails = gmail_client.fetch_unread(label="Newsletter/Tech", since=timedelta(hours=24))
 if not emails:
     notifier.send(blocks=empty_digest_blocks())
@@ -126,20 +136,23 @@ if not emails:
 空の場合も投稿する (silent failure 防止)。
 
 ### Phase 3: 要約
-```
+
+```python
 prompt = load_seed("summarize_prompt.md")
 digest = summarize(emails, prompt=prompt, model="gemini-2.5-flash")
 ```
 
 ### Phase 4: 配信
-```
+
+```python
 blocks = formatter.to_block_kit(digest)
 posted = notifier.send(blocks)
 hermes.set("last_digest_message_id", posted.message_id)
 ```
 
 ### Phase 5: 後処理 + 学習
-```
+
+```python
 gmail_client.mark_processed(emails)
 hermes_bridge.observe_session(session_log)
 ```
@@ -253,6 +266,7 @@ hermes_bridge.observe_session(session_log)
 ## 5. 拡張ポイント
 
 ### 5.1 配信先の追加 (Notifier)
+
 1. `src/digest/notifiers/<name>.py` に `Notifier` Protocol を実装する新クラスを書く。
 2. `config.yaml` の `notifiers:` セクションにエントリ追加。
 3. 必要な秘匿情報を Modal Secrets に登録。
@@ -261,11 +275,13 @@ hermes_bridge.observe_session(session_log)
 コア (`modal_app.py`, 各 Phase) は変更しない。
 
 ### 5.2 ソースの追加 (Gmail 以外)
+
 1. `src/digest/sources/<name>.py` を作り、`Source` Protocol を実装 (`fetch_unread() -> list[Email]`)。
    - 注: `Source` Protocol は Sprint 1 では未抽出。Sprint 3 で必要になった時点で `gmail_client` から抽出する。
 2. Phase 2 を該当 Source に切り替え or 並列実行に変更。
 
 ### 5.3 別エージェントの追加 (例: カレンダー要約)
+
 1. 新リポジトリではなく、同 workspace の別 channel を使う形を推奨。
 2. Modal Function を別途作り、別の cron を持たせる。Volume は別パス (`~/.hermes-cal/`) に分離。
 3. これにより本プロジェクトのスコープが膨らまない。
