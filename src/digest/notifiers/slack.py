@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 
 from slack_sdk import WebClient  # 設計境界: このファイル限定 (アーキテクチャテストで強制)
 
@@ -21,7 +21,9 @@ class SlackNotifier:
 
     def send(self, blocks: list[dict[str, Any]]) -> PostedMessage:
         response = self._client.chat_postMessage(channel=self._channel, blocks=blocks)
-        ts: str = response["ts"]
+        # SlackResponse.__getitem__ は Any | None を返す。chat.postMessage 成功時は str である
+        # という API 契約を cast で表明する。
+        ts = cast(str, response["ts"])
         return PostedMessage(
             channel=self._channel,
             message_id=ts,
