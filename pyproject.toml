@@ -21,6 +21,7 @@ dev = [
     "pytest",
     "pytest-mock",
     "types-pyyaml",
+    "pymarkdownlnt",
 ]
 
 [build-system]

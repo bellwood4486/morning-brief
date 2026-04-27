@@ -23,7 +23,7 @@
 
 ## ディレクトリ構成
 
-```
+```text
 morning-brief/
 ├── CLAUDE.md                       # このファイル
 ├── README.md                       # OSS 読み手向け (Sprint 1 終盤に作成)
