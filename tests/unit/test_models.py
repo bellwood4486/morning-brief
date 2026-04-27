@@ -1,14 +1,17 @@
 from datetime import UTC, datetime
 
 import pytest
-from pydantic import ValidationError
+from pydantic import TypeAdapter, ValidationError
 
 from digest.models import (
+    ButtonFeedback,
     DetailItem,
     Digest,
     Email,
     Feedback,
     PostedMessage,
+    ReactionFeedback,
+    ThreadReplyFeedback,
     TldrItem,
 )
 
@@ -141,23 +144,87 @@ def test_digest_naive_datetime_rejected() -> None:
 # --- Feedback ---
 
 
-# 学習: parametrize は同じテストロジックを複数入力で回す。Literal の許容値を網羅するのに使う。
-@pytest.mark.parametrize("kind", ["reaction", "button", "thread_reply"])
-def test_feedback_kind_literal(kind: str) -> None:
-    fb = Feedback(kind=kind, target_email_id="msg001", value="👍")  # type: ignore[arg-type]
-    assert fb.kind == kind
+def test_reaction_feedback_valid() -> None:
+    fb = ReactionFeedback(kind="reaction", message_id="ts123", emoji="thumbsup", user="U1")
+    assert fb.kind == "reaction"
+    assert fb.message_id == "ts123"
+    assert fb.emoji == "thumbsup"
+    assert fb.user == "U1"
+    assert fb.raw == {}
+
+
+def test_thread_reply_feedback_valid() -> None:
+    fb = ThreadReplyFeedback(
+        kind="thread_reply", message_id="ts123", text="良い記事でした", user="U1"
+    )
+    assert fb.kind == "thread_reply"
+    assert fb.text == "良い記事でした"
+
+
+def test_button_feedback_valid() -> None:
+    fb = ButtonFeedback(
+        kind="button",
+        message_id="ts123",
+        target_email_id="msg001",
+        action_id="mute_newsletter@example.com",
+        user="U1",
+    )
+    assert fb.kind == "button"
+    assert fb.target_email_id == "msg001"
+    assert fb.action_id == "mute_newsletter@example.com"
+
+
+def test_reaction_feedback_rejects_target_email_id() -> None:
+    # ReactionFeedback は email を対象にしない仕様。extra="forbid" でフィールド追加を弾く。
+    with pytest.raises(ValidationError):
+        ReactionFeedback(  # type: ignore[call-overload]
+            kind="reaction",
+            message_id="ts123",
+            emoji="thumbsup",
+            user="U1",
+            target_email_id="msg001",
+        )
+
+
+def test_button_feedback_requires_target_email_id() -> None:
+    with pytest.raises(ValidationError):
+        ButtonFeedback(  # type: ignore[call-overload]
+            kind="button", message_id="ts123", action_id="mute_x", user="U1"
+        )
+
+
+def test_feedback_discriminator_dispatches_by_kind() -> None:
+    # TypeAdapter は型エイリアスや union 型の validate_python を可能にする Pydantic ユーティリティ。
+    adapter = TypeAdapter(Feedback)
+    reaction = adapter.validate_python(
+        {"kind": "reaction", "message_id": "ts123", "emoji": "thumbsup", "user": "U1"}
+    )
+    assert isinstance(reaction, ReactionFeedback)
+
+    button = adapter.validate_python(
+        {
+            "kind": "button",
+            "message_id": "ts123",
+            "target_email_id": "msg001",
+            "action_id": "mute_x",
+            "user": "U1",
+        }
+    )
+    assert isinstance(button, ButtonFeedback)
 
 
 def test_feedback_invalid_kind_rejected() -> None:
+    adapter = TypeAdapter(Feedback)
     with pytest.raises(ValidationError):
-        Feedback(kind="invalid", target_email_id="msg001", value="x")  # type: ignore[arg-type]
+        adapter.validate_python({"kind": "unknown", "message_id": "ts123"})
 
 
-def test_feedback_raw_dict() -> None:
-    fb = Feedback(
+def test_feedback_raw_dict_round_trip() -> None:
+    fb = ReactionFeedback(
         kind="reaction",
-        target_email_id="msg001",
-        value="👍",
+        message_id="ts123",
+        emoji="thumbsup",
+        user="U1",
         raw={"event_ts": "1700000000.0"},
     )
     assert fb.raw["event_ts"] == "1700000000.0"
