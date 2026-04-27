@@ -239,6 +239,17 @@ hermes_bridge.observe_session(session_log)
 - 二重スケジューラは混乱の元。
 - Modal Cron は宣言的で、コードを読めばスケジュールが自明。
 
+### ADR-009: Gmail OAuth スコープは gmail.modify
+
+**決定**: Gmail API に要求するスコープは `https://www.googleapis.com/auth/gmail.modify` のみ。
+
+**理由**:
+- `mark_processed` (`Newsletter/Tech/Processed` ラベル付与, ADR-007) にはラベル変更権限が必要。`gmail.readonly` では `users.messages.modify` API が呼べない。
+- `gmail.send` はこのサービスの責務外 (CLAUDE.md「送信に Gmail を使わない」)。
+- フルアクセス (`https://mail.google.com/`) は最小権限原則に反する。
+
+**影響**: OAuth 認可画面に「メールの読み取り、構成、削除、送信」と表示されるが (Google 側の固定表記)、実際に送信は行わない。利用者への説明は `docs/setup.md` (T1.13) で補足する。
+
 ## 5. 拡張ポイント
 
 ### 5.1 配信先の追加 (Notifier)
