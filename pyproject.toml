@@ -45,7 +45,7 @@ warn_redundant_casts = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["googleapiclient.*", "google_auth_oauthlib.*", "modal.*"]
+module = ["googleapiclient.*", "google_auth_oauthlib.*", "google.oauth2.*", "google.auth.*", "modal.*"]
 ignore_missing_imports = true
 
 [tool.pyright]
@@ -59,6 +59,8 @@ venv = ".venv"
 reportUnknownMemberType = "none"
 reportUnknownVariableType = "none"
 reportUnknownArgumentType = "none"
+# google-api-python-client が型スタブを提供しないため抑制する
+reportMissingTypeStubs = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
