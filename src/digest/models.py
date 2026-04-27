@@ -1,9 +1,9 @@
 from __future__ import annotations  # 型ヒントを文字列扱いにして前方参照を可能にする (PEP 563)
 
 from datetime import datetime
-from typing import Any, Literal
+from typing import Annotated, Any, Literal, TypeAlias
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # 全ドメインモデルの共通制約のシングルソース。継承により全モデルに適用される。
@@ -71,14 +71,44 @@ class Digest(_StrictModel):
         return _check_aware(v)
 
 
-class Feedback(_StrictModel):
-    """ユーザーが配信メッセージに残したフィードバック。"""
+class ReactionFeedback(_StrictModel):
+    """ダイジェストメッセージ全体に対する絵文字リアクション。"""
 
     # Literal は値そのものを型にする。enum より軽量で Pydantic と相性良い。
-    kind: Literal["reaction", "button", "thread_reply"]
-    target_email_id: str
-    value: str
+    kind: Literal["reaction"]
+    message_id: str
+    emoji: str
+    user: str
     raw: dict[str, Any] = {}
+
+
+class ThreadReplyFeedback(_StrictModel):
+    """ダイジェストメッセージへのスレッド返信。"""
+
+    kind: Literal["thread_reply"]
+    message_id: str
+    text: str
+    user: str
+    raw: dict[str, Any] = {}
+
+
+class ButtonFeedback(_StrictModel):
+    """ダイジェスト内の特定メールに対するボタン操作 (ミュート等)。"""
+
+    kind: Literal["button"]
+    message_id: str
+    target_email_id: str  # button のみが email を対象とする
+    action_id: str
+    user: str
+    raw: dict[str, Any] = {}
+
+
+# TypeAlias は Python 3.11+ の明示的型エイリアス宣言。呼び出し側で list[Feedback] を維持するため。
+# Annotated + Field(discriminator="kind") で kind 値から具象型を Pydantic が振り分ける。
+Feedback: TypeAlias = Annotated[
+    ReactionFeedback | ThreadReplyFeedback | ButtonFeedback,
+    Field(discriminator="kind"),
+]
 
 
 class PostedMessage(_StrictModel):
