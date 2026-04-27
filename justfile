@@ -17,9 +17,13 @@ fmt:
 fmt-check:
     uv run ruff format --check .
 
-# mypy 型チェック
+# 型チェック: mypy と pyright を並走させる
+# - mypy: strict 設定による従来の型検査
+# - pyright: IDE (Pylance) と同じエンジン。CLI で走らせることで「IDE では赤線が出るのに
+#            just check では気付けない」という指摘の非対称を防ぐ
 type:
     uv run mypy src/
+    uv run pyright src/
 
 # ユニットテスト
 test:

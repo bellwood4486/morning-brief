@@ -17,6 +17,7 @@ dependencies = [
 dev = [
     "ruff",
     "mypy",
+    "pyright",
     "pytest",
     "pytest-mock",
     "types-pyyaml",
@@ -46,6 +47,18 @@ warn_return_any = true
 [[tool.mypy.overrides]]
 module = ["googleapiclient.*", "google_auth_oauthlib.*", "modal.*"]
 ignore_missing_imports = true
+
+[tool.pyright]
+include = ["src"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
+# slack_sdk の型スタブが **kwargs: Unknown を使っているため Unknown 系ルールを抑制する
+# (mypy の ignore_missing_imports override と同じ位置付け: 外部ライブラリ起因のノイズ除去)
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
