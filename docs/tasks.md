@@ -42,6 +42,7 @@
 #### T1.1 プロジェクトセットアップ
 
 **作業**:
+
 - `pyproject.toml` (uv 管理、Python 3.11+)
 - 依存: `modal`, `google-genai`, `slack_sdk`, `google-api-python-client`, `google-auth-oauthlib`, `pydantic`, `pyyaml`
 - dev 依存: `ruff`, `mypy`, `pytest`, `pytest-mock`
@@ -50,6 +51,7 @@
 - `tests/{unit,integration,architecture}/__init__.py`
 
 **受入条件**:
+
 - Given: clone 直後の状態
 - When: `uv sync` を実行
 - Then: 依存がインストールされ、`uv run python -c "import digest"` が成功する
@@ -61,6 +63,7 @@
 **作業**: `src/digest/models.py` を作る。
 
 **含めるもの**:
+
 - `Email` (id, sender, subject, body_text, body_html, received_at, links: list[str])
 - `TldrItem` (title_ja, summary_ja, source_url, source_email_id)
 - `DetailItem` (sender, subject_ja, points: list[str], glossary: dict[str, str], source_url, source_email_id)
@@ -69,6 +72,7 @@
 - `PostedMessage` (channel, message_id, posted_at)
 
 **受入条件**:
+
 - Given: `models.py` が実装されている
 - When: `tests/unit/test_models.py` を実行
 - Then: 各モデルが期待値で初期化でき、不正値で `ValidationError` を出す
@@ -85,6 +89,7 @@ class Notifier(Protocol):
 ```
 
 **受入条件**:
+
 - Given: Protocol が定義されている
 - When: 別ファイルから `from digest.notifiers.base import Notifier` できる
 - Then: import エラーなし
@@ -99,6 +104,7 @@ class Notifier(Protocol):
 - `collect_feedback(message_id)` で `reactions.get` + `conversations.replies` + (ボタンクリックの履歴は Phase 4 で別途記録した `actions.log` を読む)。
 
 **受入条件**:
+
 - Given: モック化された Slack Web Client
 - When: `SlackNotifier.send(blocks=[...])` を呼ぶ
 - Then: `chat.postMessage` がチャンネル `#newsletter-digest`、blocks 引数で呼ばれる
@@ -116,6 +122,7 @@ class Notifier(Protocol):
 - OAuth 認証は Modal Secrets から `gmail_oauth.json` (refresh_token 入り) を読む
 
 **受入条件**:
+
 - Given: モック化された Gmail API、`Newsletter/Tech` ラベル付き未読 3 件 (24h 以内)
 - When: `fetch_unread(label="Newsletter/Tech", since=timedelta(hours=24))` を呼ぶ
 - Then: 3 件の `Email` が返る
@@ -133,6 +140,7 @@ class Notifier(Protocol):
 - 取得後、Modal Secrets に登録するコマンドを stdout に表示
 
 **受入条件**:
+
 - Given: Google Cloud Console で OAuth client (Desktop) を作成済み、`credentials.json` がカレントにある
 - When: `uv run python scripts/bootstrap_oauth.py` を実行
 - Then: ブラウザが開いて OAuth 認可フローが走る
@@ -148,6 +156,7 @@ class Notifier(Protocol):
 - Gemini からの JSON レスポンスを `Digest` 型にパース
 
 **受入条件**:
+
 - Given: `seeds/summarize_prompt.md` が存在する、モック化された Gemini クライアント、ダミーの 3 件メール
 - When: `summarize(emails, prompt, model)` を呼ぶ
 - Then: Gemini が 1 度だけ呼ばれ、プロンプトに seed の内容が含まれる
@@ -167,6 +176,7 @@ class Notifier(Protocol):
 - 各 detail block に 👍/👎/🔥 のリアクション促し note と `[ミュート]` ボタン
 
 **受入条件**:
+
 - Given: ダミーの `Digest`
 - When: `to_block_kit(digest)` を呼ぶ
 - Then: 戻り値は Block Kit の dict のリスト
@@ -183,6 +193,7 @@ class Notifier(Protocol):
 - `last_digest_message_id` の get/set はファイル (`~/.hermes/state/last_digest.json`) で実装。
 
 **受入条件**:
+
 - Given: Modal Volume に相当するテンポラリディレクトリ
 - When: `set_last_message_id("ts123")` → `get_last_message_id()`
 - Then: `"ts123"` が返る
@@ -201,6 +212,7 @@ class Notifier(Protocol):
 - `dry_run=True` の場合、Phase 4 の Slack 送信を stdout への print に置き換え
 
 **受入条件**:
+
 - Given: 全モジュールが実装済み
 - When: `modal run modal_app.py::digest_job --dry-run` をローカルから実行
 - Then: 例外なく完了し、最終 Markdown が stdout に出る
@@ -214,6 +226,7 @@ class Notifier(Protocol):
 #### T1.11 Seeds 初期版
 
 **作業**: `seeds/` 配下 3 ファイル。
+
 - `seeds/summarize_prompt.md`: 要約プロンプト初期版
 - `seeds/newsletter_digest.md`: agentskills.io 形式のスキル定義
 - `seeds/user_initial.md`: USER.md の初期コンテンツ
@@ -221,6 +234,7 @@ class Notifier(Protocol):
 **注記**: これらの初期版はユーザーが叩き台を書く想定。Claude Code はテンプレを用意し、ユーザーがレビュー・修正する。
 
 **受入条件**:
+
 - Given: 3 ファイルが存在する
 - When: `summarize.py` から `load_seed("summarize_prompt.md")` で読める
 - Then: ファイル内容が文字列で取得できる
@@ -234,6 +248,7 @@ class Notifier(Protocol):
 - (未) secrets check: gitleaks バイナリまたは grep フォールバックで API キー風文字列を検出。`just secrets` ターゲットとして追加予定。
 
 **受入条件**:
+
 - Given: 変更がない健全な状態
 - When: `just check` を実行
 - Then: 全て通り終了コード 0
@@ -241,10 +256,12 @@ class Notifier(Protocol):
 #### T1.13 ドキュメント (agent-design.md, setup.md)
 
 **作業**:
+
 - `docs/agent-design.md`: Hermes エージェント仕様。seed の方針、フィードバック反映ルール (Sprint 2 で詳細化する旨を明記)。
 - `docs/setup.md`: 初回セットアップ手順 (Modal, Slack App, Gmail OAuth, Gemini API key, Modal Secrets 登録)。各ステップに「成功確認コマンド」を併記。
 
 **受入条件**:
+
 - Given: 別 PC でこのリポジトリを clone
 - When: `docs/setup.md` の手順に沿って進める
 - Then: 詰まるポイントなく Sprint 1 完了基準まで再現できる (実機検証は実装後にユーザーが行う)
@@ -260,6 +277,7 @@ class Notifier(Protocol):
 - ライセンス (MIT)
 
 **受入条件**:
+
 - Given: GitHub のトップに表示される
 - When: 知らない人が読む
 - Then: このプロジェクトが何をするか、誰向けかが 30 秒で理解できる
