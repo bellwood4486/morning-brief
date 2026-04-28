@@ -104,6 +104,7 @@
 - `inject_feedback(feedbacks)`: フィードバックを Hermes に渡す
 - `observe_session(session_log)`: ジョブ実行ログを渡し、スキル自動生成のトリガに
 - 永続状態は Modal Volume にマウントされた `~/.hermes/` に Hermes 自身が書く
+- `last_digest_message_id` の永続化: `~/.hermes/state/last_digest.json` に `{"message_id": "..."}` で保存。書き込みは一時ファイル + `os.replace` で原子的に行い、Modal Function の途中停止で破損 JSON が残らないことを保証する。冪等性: 同値の `set` は内容変化なし。Phase 4 全体としてのリトライ冪等性は `modal_app.py` 側の責務。
 
 ### 2.8 `seeds/`
 
