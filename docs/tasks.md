@@ -32,7 +32,7 @@
 - [ ] T1.8 Block Kit フォーマッタ
 - [ ] T1.9 Hermes Bridge (最小実装)
 - [ ] T1.10 Modal アプリ本体
-- [ ] T1.11 Seeds 初期版
+- [x] T1.11 Seeds 初期版
 - [ ] T1.12 検証スクリプトと CI 用 hook
 - [ ] T1.13 ドキュメント (agent-design.md, setup.md)
 - [ ] T1.14 README.md
