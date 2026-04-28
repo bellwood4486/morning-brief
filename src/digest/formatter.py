@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Any
+from zoneinfo import ZoneInfo
+
+from digest.models import DetailItem, Digest, TldrItem
+
+_JST = ZoneInfo("Asia/Tokyo")
+
+# Block Kit button の action_id: アクション種別を表す固定値。
+# ミュート対象 sender は value に、元メール ID は block_id に持たせる (Sprint 2 T2.1 収集規約)。
+_MUTE_ACTION_ID = "mute"
+
+
+def to_block_kit(digest: Digest) -> list[dict[str, Any]]:
+    """Digest を Slack Block Kit の dict リストに変換する。"""
+    blocks: list[dict[str, Any]] = []
+    blocks.append(_header_block(digest.generated_at))
+    blocks.append({"type": "divider"})
+    blocks.append(_tldr_section(digest.tldr_items))
+    blocks.append({"type": "divider"})
+    for item in digest.details:
+        blocks.extend(_detail_blocks(item))
+    return blocks
+
+
+def empty_digest_blocks(generated_at: datetime) -> list[dict[str, Any]]:
+    """対象メールなし時のフォールバックブロックを返す。"""
+    return [
+        _header_block(generated_at),
+        {
+            "type": "section",
+            "text": {"type": "mrkdwn", "text": "本日は対象メールなし"},
+        },
+    ]
+
+
+def _header_block(generated_at: datetime) -> dict[str, Any]:
+    date_str = generated_at.astimezone(_JST).strftime("%Y-%m-%d")
+    return {
+        "type": "header",
+        "text": {
+            "type": "plain_text",
+            "text": f"Tech Newsletter Digest {date_str} (JST)",
+        },
+    }
+
+
+def _tldr_section(items: list[TldrItem]) -> dict[str, Any]:
+    lines = ["*TL;DR*"]
+    for item in items:
+        lines.append(f"• <{item.source_url}|{item.title_ja}> — {item.summary_ja}")
+    return {
+        "type": "section",
+        "text": {"type": "mrkdwn", "text": "\n".join(lines)},
+    }
+
+
+def _detail_blocks(item: DetailItem) -> list[dict[str, Any]]:
+    blocks: list[dict[str, Any]] = [
+        {
+            "type": "section",
+            "block_id": f"detail:{item.source_email_id}",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*<{item.source_url}|{item.subject_ja}>*\n_{item.sender}_",
+            },
+            "accessory": _mute_button(item),
+        },
+    ]
+    if item.points:
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "\n".join(f"• {p}" for p in item.points),
+                },
+            }
+        )
+    if item.glossary:
+        blocks.append(_glossary_context(item.glossary))
+    blocks.append(_reaction_hint_context())
+    blocks.append({"type": "divider"})
+    return blocks
+
+
+def _mute_button(item: DetailItem) -> dict[str, Any]:
+    return {
+        "type": "button",
+        "text": {"type": "plain_text", "text": "ミュート"},
+        "action_id": _MUTE_ACTION_ID,
+        "value": item.sender,
+    }
+
+
+def _glossary_context(glossary: dict[str, str]) -> dict[str, Any]:
+    text = "\n".join(f"*{k}* — {v}" for k, v in glossary.items())
+    return {
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": text}],
+    }
+
+
+def _reaction_hint_context() -> dict[str, Any]:
+    return {
+        "type": "context",
+        "elements": [{"type": "mrkdwn", "text": "👍 役立つ / 👎 興味なし / 🔥 もっと欲しい"}],
+    }
