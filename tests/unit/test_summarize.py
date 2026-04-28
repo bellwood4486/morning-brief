@@ -8,7 +8,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from digest.models import Digest, Email
-from digest.summarize import GeminiClient, summarize
+from digest.summarize import GeminiClient
 
 
 def _make_emails(n: int) -> list[Email]:
@@ -66,20 +66,20 @@ def _make_client(
 class TestSummarize:
     def test_calls_gemini_once(self, mocker: MockerFixture) -> None:
         client, fake_genai = _make_client(mocker)
-        summarize(_make_emails(3), prompt="test prompt", client=client)
+        client.summarize(_make_emails(3), prompt="test prompt")
         fake_genai.models.generate_content.assert_called_once()
 
     def test_passes_prompt_as_system_instruction(self, mocker: MockerFixture) -> None:
         client, fake_genai = _make_client(mocker)
         prompt = "my system prompt"
-        summarize(_make_emails(3), prompt=prompt, client=client)
+        client.summarize(_make_emails(3), prompt=prompt)
         config = fake_genai.models.generate_content.call_args.kwargs["config"]
         assert config.system_instruction == prompt
 
     def test_passes_emails_as_json_contents(self, mocker: MockerFixture) -> None:
         client, fake_genai = _make_client(mocker)
         emails = _make_emails(3)
-        summarize(emails, prompt="prompt", client=client)
+        client.summarize(emails, prompt="prompt")
         contents = fake_genai.models.generate_content.call_args.kwargs["contents"]
         parsed = json.loads(contents)
         assert len(parsed) == 3
@@ -87,33 +87,33 @@ class TestSummarize:
 
     def test_uses_default_model(self, mocker: MockerFixture) -> None:
         client, fake_genai = _make_client(mocker)
-        summarize(_make_emails(1), prompt="p", client=client)
+        client.summarize(_make_emails(1), prompt="p")
         assert fake_genai.models.generate_content.call_args.kwargs["model"] == "gemini-2.5-flash"
 
     def test_uses_specified_model(self, mocker: MockerFixture) -> None:
         client, fake_genai = _make_client(mocker)
-        summarize(_make_emails(1), prompt="p", client=client, model="gemini-2.5-pro")
+        client.summarize(_make_emails(1), prompt="p", model="gemini-2.5-pro")
         assert fake_genai.models.generate_content.call_args.kwargs["model"] == "gemini-2.5-pro"
 
     def test_returns_digest_type(self, mocker: MockerFixture) -> None:
         client, _ = _make_client(mocker)
-        result = summarize(_make_emails(3), prompt="p", client=client)
+        result = client.summarize(_make_emails(3), prompt="p")
         assert isinstance(result, Digest)
 
     def test_returns_digest_with_3_tldrs_and_3_details(self, mocker: MockerFixture) -> None:
         client, _ = _make_client(mocker, response_text=_make_digest_json(3, 3))
-        result = summarize(_make_emails(3), prompt="p", client=client)
+        result = client.summarize(_make_emails(3), prompt="p")
         assert len(result.tldr_items) == 3
         assert len(result.details) == 3
 
     def test_returns_digest_with_5_tldrs(self, mocker: MockerFixture) -> None:
         client, _ = _make_client(mocker, response_text=_make_digest_json(5, 3))
-        result = summarize(_make_emails(5), prompt="p", client=client)
+        result = client.summarize(_make_emails(5), prompt="p")
         assert len(result.tldr_items) == 5
 
     def test_uses_application_json_mime_type(self, mocker: MockerFixture) -> None:
         client, fake_genai = _make_client(mocker)
-        summarize(_make_emails(1), prompt="p", client=client)
+        client.summarize(_make_emails(1), prompt="p")
         config = fake_genai.models.generate_content.call_args.kwargs["config"]
         assert config.response_mime_type == "application/json"
 
@@ -124,11 +124,11 @@ class TestSummarize:
         fake_genai.models.generate_content.return_value = fake_response
         client = GeminiClient(client=fake_genai)
         with pytest.raises(RuntimeError, match="no text"):
-            summarize(_make_emails(1), prompt="p", client=client)
+            client.summarize(_make_emails(1), prompt="p")
 
     def test_raises_on_invalid_json(self, mocker: MockerFixture) -> None:
         from pydantic import ValidationError
 
         client, _ = _make_client(mocker, response_text='{"invalid": "schema"}')
         with pytest.raises(ValidationError):
-            summarize(_make_emails(1), prompt="p", client=client)
+            client.summarize(_make_emails(1), prompt="p")
