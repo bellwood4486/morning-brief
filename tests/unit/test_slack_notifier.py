@@ -10,7 +10,7 @@ from pytest_mock import MockerFixture
 from slack_sdk import WebClient
 
 from digest.models import ReactionFeedback, ThreadReplyFeedback
-from digest.notifiers.slack import SlackNotifier
+from digest.notifiers.slack import SlackNotifier, build_slack_notifier
 
 
 # 責務: デフォルト構成の SlackNotifier とモック化された WebClient を返すファクトリ。
@@ -232,6 +232,22 @@ def test_collect_feedback_message_id_propagated_to_all(mocker: MockerFixture) ->
     feedbacks = notifier.collect_feedback("ts123")
 
     assert all(f.message_id == "ts123" for f in feedbacks)
+
+
+# --- build_slack_notifier ---
+
+
+def test_build_slack_notifier_returns_slack_notifier() -> None:
+    notifier = build_slack_notifier(token="xoxb-fake", channel="#test")
+    assert isinstance(notifier, SlackNotifier)
+
+
+def test_build_slack_notifier_channel_is_set() -> None:
+    notifier = build_slack_notifier(token="xoxb-fake", channel="#my-channel")
+    assert notifier._channel == "#my-channel"
+
+
+# ---
 
 
 @pytest.mark.parametrize("invalid_attr", ["emoji", "user", "message_id"])

@@ -80,3 +80,8 @@ class SlackNotifier:
                 )
             )
         return result
+
+
+def build_slack_notifier(token: str, channel: str) -> SlackNotifier:
+    """責務: slack_sdk の構築を呼び出し元 (modal_app.py 等) から隠蔽する factory。"""
+    return SlackNotifier(client=WebClient(token=token), channel=channel)
