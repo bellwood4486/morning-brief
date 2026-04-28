@@ -30,7 +30,7 @@
 - [x] T1.6 OAuth bootstrap スクリプト
 - [x] T1.7 要約モジュール (Gemini)
 - [x] T1.8 Block Kit フォーマッタ
-- [ ] T1.9 Hermes Bridge (最小実装)
+- [x] T1.9 Hermes Bridge (最小実装)
 - [ ] T1.10 Modal アプリ本体
 - [x] T1.11 Seeds 初期版
 - [ ] T1.12 検証スクリプトと CI 用 hook
