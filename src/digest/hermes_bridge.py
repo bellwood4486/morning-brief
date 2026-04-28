@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 class HermesBridge:
     state_dir: Path
 
+    # @property: メソッドをフィールド風にアクセスできるデコレータ。括弧なしで呼べる。
     @property
     def _state_file(self) -> Path:
         return self.state_dir / "state" / "last_digest.json"
