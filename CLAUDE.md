@@ -67,7 +67,7 @@ morning-brief/
 
 ## やってはいけないこと
 
-1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット前に `gitleaks` 相当のチェックが入る (`just secrets`、T1.12 残部分で追加予定)。
+1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット前に `gitleaks` 相当のチェックが入る (`just secrets`)。
 2. **Notifier 抽象を飛ばさない**: `slack_sdk` の import は `src/digest/notifiers/slack.py` 以外で禁止。アーキテクチャテストで検出する。
 3. **Hermes の永続状態に直接書き込まない**: `~/.hermes/` は Modal Volume 経由でのみアクセス。`hermes_bridge.py` を介す。
 4. **プロンプトをコードにベタ書きしない**: 全プロンプトは `seeds/*.md` から読み込む。
@@ -79,8 +79,9 @@ morning-brief/
 ## 開発コマンド
 
 ```bash
-# ツールのインストール (初回のみ)
-brew install just
+# 前提ツールのインストール (初回のみ、mise が未インストールなら brew install mise を先に実行)
+mise trust   # リポジトリを信頼
+mise install # python, uv, just, gitleaks を一括導入
 
 # 依存セットアップ
 just sync
@@ -94,6 +95,7 @@ just type          # mypy
 just test          # ユニットテスト (高速、外部依存なし)
 just test-int      # 統合テスト (モック前提)
 just test-arch     # 設計遵守テスト
+just secrets       # 秘匿情報検出 (gitleaks)
 
 # 一括検証 (コミット前に必ず実行)
 just check
@@ -120,7 +122,7 @@ just check
 
 - 層1: ruff (lint + format), mypy (型), pytest (unit + integration)
 - 層3: アーキテクチャテスト (境界破り検出)
-- secrets check: `just secrets` として別途追加予定 (T1.12 残部分)
+- secrets check: `just secrets` (gitleaks)
 
 各タスクの完了判定は `docs/tasks.md` の Given-When-Then 形式の受入条件で行います。**受入条件を満たすテストが通るまで、そのタスクは「完了」ではありません**。「動いた」「実装した」だけでは不十分です。
 
