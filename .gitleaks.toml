@@ -1,0 +1,17 @@
+title = "morning-brief gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "テスト用偽トークン・テストフィクスチャを除外"
+paths = [
+  '''tests/.*''',
+  '''\.gitleaks\.toml''',
+  '''\.env\.example''',
+  '''config\.example\.yaml''',
+]
+regexes = [
+  '''xoxb-fake[\w-]*''',
+  '''xoxp-fake[\w-]*''',
+]

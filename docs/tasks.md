@@ -15,7 +15,7 @@
 - 平日朝 06:30 JST に `#newsletter-digest` にダイジェストが自動投稿される。
 - ダイジェストは TL;DR + 詳細の 2 段構え。
 - 各記事ブロックに 👍/👎/🔥 リアクション促し + ミュートボタンが付いている。
-- リポジトリに秘匿情報が含まれていない (`just secrets` がグリーン、T1.12 残部分で追加予定)。
+- リポジトリに秘匿情報が含まれていない (`just secrets` がグリーン)。
 - `just check` 全体がグリーン。
 
 ### タスク一覧
@@ -33,7 +33,7 @@
 - [x] T1.9 Hermes Bridge (最小実装)
 - [x] T1.10 Modal アプリ本体
 - [x] T1.11 Seeds 初期版
-- [ ] T1.12 検証スクリプトと CI 用 hook
+- [x] T1.12 検証スクリプトと CI 用 hook
 - [ ] T1.13 ドキュメント (agent-design.md, setup.md)
 - [ ] T1.14 README.md
 
@@ -240,12 +240,13 @@ class Notifier(Protocol):
 - Then: ファイル内容が文字列で取得できる
 - And: agent-design.md にこれら seed の方針が文書化されている (Sprint 1 終盤の T1.13 で対応)
 
-#### T1.12 コマンドランナーと secrets check
+#### T1.12 コマンドランナー / 開発前提ツール / secrets check
 
-**作業**: `justfile` (コマンドランナー) + secrets check (gitleaks 相当)。
+**作業**: `justfile` (コマンドランナー) + 開発前提ツール (`mise`) + secrets check (gitleaks 相当)。
 
-- (済) `justfile`: ruff / mypy / pytest を just ターゲットに集約。`just check` で一括実行。
-- (未) secrets check: gitleaks バイナリまたは grep フォールバックで API キー風文字列を検出。`just secrets` ターゲットとして追加予定。
+- (済) `justfile`: ruff / mypy / pytest / secrets を just ターゲットに集約。`just check` で一括実行。
+- (済) `.mise.toml`: python (`3.11`) / uv / just / gitleaks を宣言。`mise install` で一括導入。
+- (済) secrets check: `.gitleaks.toml` で `tests/` と偽トークンを allowlist。gitleaks (未インストール時は grep フォールバック)。`tests/architecture/test_no_secrets_in_code.py` を pytest 層にも追加。
 
 **受入条件**:
 
