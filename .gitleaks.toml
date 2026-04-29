@@ -11,6 +11,8 @@ paths = [
   '''\.env\.example''',
   '''config\.example\.yaml''',
 ]
+# xoxb- は Slack Bot トークン、xoxp- は Slack User トークンのプレフィックス (Slack の命名規則)。
+# tests/ 配下のダミー値 (xoxb-fake 等) が gitleaks 標準ルールに引っかかるため除外。
 regexes = [
   '''xoxb-fake[\w-]*''',
   '''xoxp-fake[\w-]*''',
