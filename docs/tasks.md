@@ -34,7 +34,7 @@
 - [x] T1.10 Modal アプリ本体
 - [x] T1.11 Seeds 初期版
 - [x] T1.12 検証スクリプトと CI 用 hook
-- [ ] T1.13 ドキュメント (agent-design.md, setup.md)
+- [x] T1.13 ドキュメント (agent-design.md, setup.md)
 - [ ] T1.14 README.md
 
 ---
