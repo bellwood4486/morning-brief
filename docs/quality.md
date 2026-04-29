@@ -37,7 +37,7 @@ warn_return_any = true
 `just check` で全部まとめて走らせる。Claude Code は **コミット前に必ず実行** することを `CLAUDE.md` でルール化済み。コマンドランナーは `just` (`brew install just` で導入)。
 
 ```just
-# 秘匿情報検出 (gitleaks 必須、未インストール時は grep フォールバック)
+# 秘匿情報検出 (gitleaks)
 secrets: ...
 
 # 一括検証 (commit 前に必ず実行)
@@ -94,7 +94,7 @@ def test_slack_sdk_only_in_notifier():
 
 #### test_no_secrets_in_code.py
 
-レポジトリにコミットされる予定のファイルに API キー風の文字列がないかを検出。`just secrets` (gitleaks) と検出意図は重複するが、未インストール環境でも pytest から検証できるよう独立保持。
+レポジトリにコミットされる予定のファイルに API キー風の文字列がないかを検出。`just secrets` (gitleaks) と検出意図は重複するが、`pytest tests/architecture/` だけ走らせた場合の独立な検証経路として保持。
 
 #### test_prompts_in_seeds.py
 

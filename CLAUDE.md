@@ -122,7 +122,7 @@ just check
 
 - 層1: ruff (lint + format), mypy (型), pytest (unit + integration)
 - 層3: アーキテクチャテスト (境界破り検出)
-- secrets check: `just secrets` (gitleaks 必須、grep フォールバックあり)
+- secrets check: `just secrets` (gitleaks)
 
 各タスクの完了判定は `docs/tasks.md` の Given-When-Then 形式の受入条件で行います。**受入条件を満たすテストが通るまで、そのタスクは「完了」ではありません**。「動いた」「実装した」だけでは不十分です。
 

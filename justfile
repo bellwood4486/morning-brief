@@ -41,23 +41,9 @@ test-arch:
 md-lint:
     uv run pymarkdown -c .pymarkdown.json scan --recurse --respect-gitignore .
 
-# 秘匿情報検出 (mise install で gitleaks が入る前提、未インストール時は grep フォールバック)
+# 秘匿情報検出 (mise install で gitleaks が入る前提)
 secrets:
-    #!/usr/bin/env bash
-    set -euo pipefail
-    if command -v gitleaks >/dev/null 2>&1; then
-        gitleaks detect --source . --no-banner --redact --config .gitleaks.toml
-    else
-        echo "gitleaks not found, falling back to grep" >&2
-        if git grep -nE \
-            'xoxb-[A-Za-z0-9-]{20,}|xoxp-[A-Za-z0-9-]{20,}|sk-[A-Za-z0-9]{32,}|AIza[0-9A-Za-z_-]{35}|ghp_[A-Za-z0-9]{36}' \
-            -- ':!tests/' ':!.gitleaks.toml' \
-            | grep -vE 'xox[bp]-fake'; then
-            echo "secret-like strings detected by grep fallback" >&2
-            exit 1
-        fi
-        echo "grep fallback: no secrets detected"
-    fi
+    gitleaks detect --source . --no-banner --redact --config .gitleaks.toml
 
 # 一括検証 (commit 前に必ず実行)
 check: secrets lint fmt-check type test test-arch md-lint
