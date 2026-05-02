@@ -1,33 +1,40 @@
-import shlex
+from unittest.mock import MagicMock, patch
 
-from bootstrap_oauth import build_modal_secret_command
+import pytest
+from bootstrap_oauth import register_modal_secret
 
 
-def test_standard_input() -> None:
-    result = build_modal_secret_command(
-        "gmail-oauth",
-        "GMAIL_OAUTH_JSON",
-        '{"refresh_token": "token123"}',
+def test_register_calls_subprocess_with_correct_args() -> None:
+    payload = '{"refresh_token": "token123"}'
+    with patch("bootstrap_oauth.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        register_modal_secret("gmail-oauth", payload)
+    mock_run.assert_called_once_with(
+        [
+            "uv",
+            "run",
+            "modal",
+            "secret",
+            "create",
+            "gmail-oauth",
+            f"GMAIL_OAUTH_JSON={payload}",
+        ],
+        check=False,
     )
-    expected = "modal secret create gmail-oauth GMAIL_OAUTH_JSON=" + shlex.quote(
-        '{"refresh_token": "token123"}'
-    )
-    assert result == expected
 
 
-def test_payload_roundtrip_with_special_chars() -> None:
-    # シングルクォート・ドルサイン・バックスラッシュを含む payload でも
-    # shlex.split でラウンドトリップが成立する (shell injection にならない)
-    payload = """{"key": "it's $HOME \\"escaped\\""}"""
-    result = build_modal_secret_command("gmail-oauth", "GMAIL_OAUTH_JSON", payload)
-    parts = shlex.split(result)
-    key, value = parts[-1].split("=", 1)
-    assert key == "GMAIL_OAUTH_JSON"
-    assert value == payload
+def test_register_raises_on_nonzero_returncode(capsys: pytest.CaptureFixture[str]) -> None:
+    payload = '{"refresh_token": "secret"}'
+    with patch("bootstrap_oauth.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=1)
+        with pytest.raises(SystemExit):
+            register_modal_secret("gmail-oauth", payload)
+    assert "自動登録に失敗しました" in capsys.readouterr().err
 
 
-def test_secret_name_with_shell_metachar() -> None:
-    # secret_name にシェルメタ文字が混じっても shlex.quote でエスケープされる
-    result = build_modal_secret_command("evil; rm -rf /", "GMAIL_OAUTH_JSON", "{}")
-    parts = shlex.split(result)
-    assert parts[3] == "evil; rm -rf /"
+def test_register_does_not_print_payload_to_stdout(capsys: pytest.CaptureFixture[str]) -> None:
+    payload = '{"refresh_token": "supersecret"}'
+    with patch("bootstrap_oauth.subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(returncode=0)
+        register_modal_secret("gmail-oauth", payload)
+    assert payload not in capsys.readouterr().out

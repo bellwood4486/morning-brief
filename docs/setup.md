@@ -189,13 +189,7 @@ uv run python scripts/bootstrap_oauth.py
 ブラウザが開いて認可フローが走る。承認後:
 
 - `gmail_oauth.json` がリポジトリ直下に生成される (`.gitignore` 済み)。
-- stdout に `modal secret create gmail-oauth GMAIL_OAUTH_JSON=...` 形式のコマンドが表示される。
-
-そのコマンドをコピペして実行する。
-
-```bash
-uv run modal secret create gmail-oauth GMAIL_OAUTH_JSON=<スクリプトが出力した値>
-```
+- `gmail-oauth` が Modal Secrets に自動登録される。
 
 > **注意 — OAuth 同意画面について**: 認可画面に「メールの読み取り、構成、削除、送信」と表示されるが、
 > このサービスが使うスコープは `gmail.modify` のみ (= 読み取りとラベル付け)。
