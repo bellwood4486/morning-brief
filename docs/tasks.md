@@ -283,6 +283,19 @@ class Notifier(Protocol):
 - When: 知らない人が読む
 - Then: このプロジェクトが何をするか、誰向けかが 30 秒で理解できる
 
+#### Sprint 1 完了後の追加作業
+
+T1.14 完了後、Sprint 1 完了基準の実成立や運用着手に伴って発生した修正・改善。
+
+- [x] #20 dry-run のバグ修正 (Phase 3 logging の Digest attribute reference)
+- [x] #23 Slack `chat.postMessage` に text fallback を追加
+- [x] #25 LangSmith + Logfire によるトレーシングを追加
+- [x] #26 `just deploy` ターゲット追加 (Modal Cron 有効化用)
+- [x] #27 Slack チャンネルを ID 指定に切り替え、`config.yaml` を untrack
+- [x] #28 `logging`→Logfire ブリッジ追加 (エラーパスを Logfire 上で観測可能に)
+
+---
+
 ### Sprint 1 タスク間の依存関係
 
 ```text
