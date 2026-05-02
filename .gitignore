@@ -21,3 +21,31 @@ config.yaml
 .DS_Store
 .idea/
 .vscode/
+
+# 鍵ファイル
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# Google SA / OAuth client 派生
+*service*account*.json
+*service_account*.json
+*-sa.json
+*credentials*.json
+client_secret*.json
+gha-creds-*.json
+
+.env.*
+!.env.example
+*.env.local
+
+# トークン・キャッシュ
+token.json
+*.token
+.secrets/
+secrets/
+
+# Logfire write token
+.logfire/
