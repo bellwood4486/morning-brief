@@ -4,6 +4,15 @@
 
 このファイルは Claude Code がこのリポジトリで作業する際の運用マニュアルです。設計判断の背景は `docs/design.md`、要件は `docs/requirements.md`、タスク分解は `docs/tasks.md`、検証手順は `docs/quality.md` を参照してください。
 
+## Security
+
+シークレット管理は `~/.claude/rules/home-secrets.md` のグローバルポリシーに従う。
+本プロジェクト固有の補足:
+
+- ランタイムは Modal Secrets。bootstrap 時のみローカルに `credentials.json` / `gmail_oauth.json`
+- env への直接アクセスは `src/digest/observability.py` に局所化、他は DI
+- secret パターン検査は `tests/architecture/test_no_secrets_in_code.py` + `.gitleaks.toml`
+
 ## 主要な決定事項
 
 | 項目 | 決定 |
@@ -67,7 +76,7 @@ morning-brief/
 
 ## やってはいけないこと
 
-1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット前に `gitleaks` 相当のチェックが入る (`just secrets`)。
+1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット時に pre-commit hook で gitleaks が staged を自動スキャン (`uv run pre-commit install` 必須)。手動検査は `just secrets`。
 2. **Notifier 抽象を飛ばさない**: `slack_sdk` の import は `src/digest/notifiers/slack.py` 以外で禁止。アーキテクチャテストで検出する。
 3. **Hermes の永続状態に直接書き込まない**: `~/.hermes/` は Modal Volume 経由でのみアクセス。`hermes_bridge.py` を介す。
 4. **プロンプトをコードにベタ書きしない**: 全プロンプトは `seeds/*.md` から読み込む。
