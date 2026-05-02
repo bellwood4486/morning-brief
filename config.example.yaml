@@ -4,8 +4,8 @@ gmail:
   lookback_hours: 24
 
 slack:
-  digest_channel: "#newsletter-digest"
-  alerts_channel: "#alerts"
+  digest_channel: "C0XXXXXXX"  # ダイジェスト投稿先 (Slack のチャンネル ID)
+  alerts_channel: "C0YYYYYYY"  # エラー通知先 (Slack のチャンネル ID)
 
 llm:
   model: "gemini-2.5-flash"

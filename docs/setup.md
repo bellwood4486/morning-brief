@@ -76,12 +76,12 @@ cp config.example.yaml config.yaml
 | `gmail.label` | `Newsletter/Tech` | 対象メールに付くラベル名 |
 | `gmail.processed_label` | `Newsletter/Tech/Processed` | 処理済みを示すラベル名 |
 | `gmail.lookback_hours` | `24` | 何時間前までのメールを対象にするか |
-| `slack.digest_channel` | `#newsletter-digest` | ダイジェスト投稿先チャンネル |
-| `slack.alerts_channel` | `#alerts` | エラー通知先チャンネル |
+| `slack.digest_channel` | `C0XXXXXXX` | ダイジェスト投稿先チャンネル ID (§6.4 参照) |
+| `slack.alerts_channel` | `C0YYYYYYY` | エラー通知先チャンネル ID (§6.4 参照) |
 | `llm.model` | `gemini-2.5-flash` | 使用する Gemini モデル名 |
 | `schedule.cron` | `30 21 * * 1-5` | Modal Cron の設定 (UTC)。平日 06:30 JST |
 
-Slack チャンネル名は §6 で作成するものと合わせること。
+チャンネル ID の取得方法は §6.4 を参照すること。
 
 ### 成功確認
 
@@ -150,6 +150,9 @@ Slack ワークスペースで以下の 2 チャンネルを作成する。
 - `#alerts`: エラー通知先
 
 各チャンネルで `/invite @<bot-name>` を実行して Bot を招待する。
+
+チャンネル ID は Slack の「チャンネル詳細」画面の一番下に表示される (`C0XXXXXXX` 形式)。
+`config.yaml` の `digest_channel` / `alerts_channel` にはこの ID を設定する。
 
 ### 6.5 Modal Secret の登録
 

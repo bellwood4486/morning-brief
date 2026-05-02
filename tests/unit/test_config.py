@@ -14,8 +14,8 @@ def test_load_example_yaml() -> None:
     assert cfg.gmail.label == "Newsletter/Tech"
     assert cfg.gmail.processed_label == "Newsletter/Tech/Processed"
     assert cfg.gmail.lookback_hours == 24
-    assert cfg.slack.digest_channel == "#newsletter-digest"
-    assert cfg.slack.alerts_channel == "#alerts"
+    assert cfg.slack.digest_channel == "C0XXXXXXX"
+    assert cfg.slack.alerts_channel == "C0YYYYYYY"
     assert cfg.llm.model == "gemini-2.5-flash"
     assert cfg.schedule.cron == "30 21 * * 1-5"
 
