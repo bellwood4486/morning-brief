@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import uuid
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,8 @@ image = (
         "google-auth-oauthlib",
         "pydantic>=2",
         "pyyaml",
+        "langsmith>=0.2",
+        "logfire>=2",
     )
     # digest パッケージを /root/src に配置し PYTHONPATH で参照できるようにする。
     # add_local_dir("src", ...) にすると seeds.py の parents[2] が /root になり
@@ -40,6 +43,8 @@ app = modal.App("morning-brief")
         modal.Secret.from_name("gmail-oauth"),
         modal.Secret.from_name("gemini-api-key"),
         modal.Secret.from_name("slack-bot-token"),
+        modal.Secret.from_name("langsmith"),
+        modal.Secret.from_name("logfire"),
     ],
     volumes={"/root/.hermes": volume},
     timeout=600,
@@ -56,8 +61,13 @@ def digest_job(dry_run: bool = False) -> None:
     from digest.gmail_client import build_gmail_client
     from digest.hermes_bridge import build_hermes_bridge
     from digest.notifiers.slack import build_slack_notifier
+    from digest.observability import flush, init_observability, span
     from digest.seeds import load_seed
     from digest.summarize import build_gemini_client
+
+    # run_id は LangSmith run と Logfire span を後から突き合わせるための相関 ID
+    run_id = uuid.uuid4().hex[:12]
+    init_observability(dry_run, run_id)
 
     cfg = Config.load(Path("/root/config.yaml"))
     notifier = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.digest_channel)
@@ -67,39 +77,52 @@ def digest_job(dry_run: bool = False) -> None:
     hermes = build_hermes_bridge()
 
     try:
-        _phase1_collect_feedback(notifier, hermes)
-    except Exception:
-        logger.warning("Phase 1 (collect feedback) failed", exc_info=True)
+        with span("digest_job", run_id=run_id, dry_run=str(dry_run)):
+            with span("phase1.collect_feedback"):
+                try:
+                    _phase1_collect_feedback(notifier, hermes)
+                except Exception:
+                    logger.warning("Phase 1 (collect feedback) failed", exc_info=True)
 
-    emails = _phase2_fetch_emails(gmail, cfg.gmail.label, cfg.gmail.lookback_hours)
-    if not emails:
-        generated_at = datetime.now(UTC)
-        blocks = empty_digest_blocks(generated_at=generated_at)
-        text = empty_digest_fallback_text(generated_at)
-        _phase4_publish_empty(notifier, blocks, text, dry_run)
-        return
+            with span("phase2.fetch_emails"):
+                emails = _phase2_fetch_emails(gmail, cfg.gmail.label, cfg.gmail.lookback_hours)
 
-    try:
-        digest = _phase3_summarize(gemini, emails, load_seed("summarize_prompt.md"), cfg.llm.model)
-    except Exception as e:
-        logger.exception("Phase 3 (summarize) failed")
-        _alert(alerts, f"Phase 3 (summarize) failed: {e}")
-        return
+            if not emails:
+                generated_at = datetime.now(UTC)
+                blocks = empty_digest_blocks(generated_at=generated_at)
+                text = empty_digest_fallback_text(generated_at)
+                with span("phase4.publish_empty"):
+                    _phase4_publish_empty(notifier, blocks, text, dry_run)
+                return
 
-    blocks = to_block_kit(digest)
-    text = digest_fallback_text(digest)
-    try:
-        posted = _phase4_publish(notifier, blocks, text, dry_run)
-    except Exception as e:
-        logger.exception("Phase 4 (send) failed")
-        _alert(alerts, f"Phase 4 (send) failed: {e}")
-        _print_for_dry_run(blocks, digest)
-        return
+            with span("phase3.summarize"):
+                try:
+                    digest = _phase3_summarize(
+                        gemini, emails, load_seed("summarize_prompt.md"), cfg.llm.model
+                    )
+                except Exception as e:
+                    logger.exception("Phase 3 (summarize) failed")
+                    _alert(alerts, f"Phase 3 (summarize) failed: {e}")
+                    return
 
-    if posted is not None:
-        hermes.set_last_message_id(posted.message_id)
+            blocks = to_block_kit(digest)
+            text = digest_fallback_text(digest)
+            with span("phase4.publish"):
+                try:
+                    posted = _phase4_publish(notifier, blocks, text, dry_run)
+                except Exception as e:
+                    logger.exception("Phase 4 (send) failed")
+                    _alert(alerts, f"Phase 4 (send) failed: {e}")
+                    _print_for_dry_run(blocks, digest)
+                    return
 
-    _phase5_postprocess(gmail, hermes, emails, dry_run)
+            if posted is not None:
+                hermes.set_last_message_id(posted.message_id)
+
+            with span("phase5.postprocess"):
+                _phase5_postprocess(gmail, hermes, emails, dry_run)
+    finally:
+        flush()
 
 
 # --- Phase 関数 ---

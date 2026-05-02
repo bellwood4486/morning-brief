@@ -222,6 +222,48 @@ unset GEMINI_API_KEY
 uv run modal secret list  # gemini-api-key が表示される
 ```
 
+## 8.5 オブザーバビリティ (LangSmith / Logfire) の設定 — 任意
+
+**スキップ可**: クレデンシャルが未設定でもアプリは正常動作する。LLM の入出力追跡と処理フローの可視化が不要であれば §9 に進む。
+
+設計判断の背景は [design.md ADR-010](design.md#adr-010) を参照。
+
+### LangSmith
+
+[smith.langchain.com](https://smith.langchain.com) でアカウントを作成し、API key を発行する。
+
+```bash
+read -rs LANGSMITH_API_KEY
+uv run modal secret create langsmith \
+  LANGSMITH_API_KEY="$LANGSMITH_API_KEY" \
+  LANGSMITH_TRACING=true \
+  LANGSMITH_PROJECT=morning-brief
+unset LANGSMITH_API_KEY
+```
+
+### Logfire
+
+[logfire.pydantic.dev](https://logfire.pydantic.dev) でアカウントとプロジェクトを作成する。
+
+```bash
+uv run logfire auth                        # ブラウザで認証
+uv run logfire projects use morning-brief  # プロジェクトを選択
+```
+
+write token を取得して Modal Secret に登録する。
+
+```bash
+read -rs LOGFIRE_TOKEN
+uv run modal secret create logfire LOGFIRE_TOKEN="$LOGFIRE_TOKEN"
+unset LOGFIRE_TOKEN
+```
+
+### 成功確認
+
+```bash
+uv run modal secret list  # langsmith / logfire が表示される
+```
+
 ## 9. Gmail 側のラベル / フィルタ設定
 
 > ラベルの設定は本サービスのコード責務外だが ([requirements.md](requirements.md) FR-1)、設定されていないとダイジェストが空になるためここで案内する。

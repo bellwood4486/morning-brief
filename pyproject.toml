@@ -11,6 +11,8 @@ dependencies = [
     "google-auth-oauthlib",
     "pydantic>=2",
     "pyyaml",
+    "langsmith>=0.2",
+    "logfire>=2",
 ]
 
 [dependency-groups]
