@@ -59,3 +59,7 @@ run:
 # Modal にデプロイ (Cron 有効化)
 deploy:
     uv run modal deploy modal_app.py
+
+# pre-commit hook をインストール (clone 後に 1 度だけ)
+install-hooks:
+    uv run pre-commit install

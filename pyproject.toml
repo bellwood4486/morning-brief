@@ -24,6 +24,7 @@ dev = [
     "pytest-mock",
     "types-pyyaml",
     "pymarkdownlnt",
+    "pre-commit>=3.7",
 ]
 
 [build-system]

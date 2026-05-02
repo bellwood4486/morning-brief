@@ -54,6 +54,16 @@ cd morning-brief
 just sync     # uv sync を実行して依存パッケージをインストール
 ```
 
+### Git hook のインストール
+
+リポジトリ clone 直後に 1 度だけ実行:
+
+```bash
+uv run pre-commit install
+```
+
+これでコミット時に gitleaks が staged 差分を自動スキャンする。
+
 ### 成功確認
 
 ```bash
