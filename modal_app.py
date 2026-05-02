@@ -47,7 +47,12 @@ app = modal.App("morning-brief")
 def digest_job(dry_run: bool = False) -> None:
     # Modal コンテナ内でのみ解決できるため、ここで遅延 import する。
     from digest.config import Config
-    from digest.formatter import empty_digest_blocks, to_block_kit
+    from digest.formatter import (
+        digest_fallback_text,
+        empty_digest_blocks,
+        empty_digest_fallback_text,
+        to_block_kit,
+    )
     from digest.gmail_client import build_gmail_client
     from digest.hermes_bridge import build_hermes_bridge
     from digest.notifiers.slack import build_slack_notifier
@@ -68,8 +73,10 @@ def digest_job(dry_run: bool = False) -> None:
 
     emails = _phase2_fetch_emails(gmail, cfg.gmail.label, cfg.gmail.lookback_hours)
     if not emails:
-        blocks = empty_digest_blocks(generated_at=datetime.now(UTC))
-        _phase4_publish_empty(notifier, blocks, dry_run)
+        generated_at = datetime.now(UTC)
+        blocks = empty_digest_blocks(generated_at=generated_at)
+        text = empty_digest_fallback_text(generated_at)
+        _phase4_publish_empty(notifier, blocks, text, dry_run)
         return
 
     try:
@@ -80,8 +87,9 @@ def digest_job(dry_run: bool = False) -> None:
         return
 
     blocks = to_block_kit(digest)
+    text = digest_fallback_text(digest)
     try:
-        posted = _phase4_publish(notifier, blocks, dry_run)
+        posted = _phase4_publish(notifier, blocks, text, dry_run)
     except Exception as e:
         logger.exception("Phase 4 (send) failed")
         _alert(alerts, f"Phase 4 (send) failed: {e}")
@@ -126,21 +134,21 @@ def _phase3_summarize(gemini: Any, emails: list[Any], prompt: str, model: str) -
     return digest
 
 
-def _phase4_publish(notifier: Any, blocks: list[Any], dry_run: bool) -> Any:
+def _phase4_publish(notifier: Any, blocks: list[Any], text: str, dry_run: bool) -> Any:
     if dry_run:
         _print_for_dry_run(blocks)
         return None
-    posted = notifier.send(blocks)
+    posted = notifier.send(blocks, text=text)
     logger.info("Phase 4: posted message_id=%s", posted.message_id)
     return posted
 
 
-def _phase4_publish_empty(notifier: Any, blocks: list[Any], dry_run: bool) -> None:
+def _phase4_publish_empty(notifier: Any, blocks: list[Any], text: str, dry_run: bool) -> None:
     if dry_run:
         _print_for_dry_run(blocks)
         logger.info("Phase 4: dry_run=True, empty digest not sent")
         return
-    notifier.send(blocks)
+    notifier.send(blocks, text=text)
     logger.info("Phase 4: posted empty digest")
 
 
@@ -154,7 +162,10 @@ def _phase5_postprocess(gmail: Any, hermes: Any, emails: list[Any], dry_run: boo
 
 def _alert(alerts: Any, message: str) -> None:
     try:
-        alerts.send([{"type": "section", "text": {"type": "mrkdwn", "text": message}}])
+        alerts.send(
+            [{"type": "section", "text": {"type": "mrkdwn", "text": message}}],
+            text=f"[morning-brief alert] {message}",
+        )
     except Exception:
         logger.error("Failed to send alert: %s", message, exc_info=True)
 
