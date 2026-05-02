@@ -70,3 +70,88 @@ def test_flush_noop_without_logfire(monkeypatch: pytest.MonkeyPatch) -> None:
     importlib.reload(obs_mod)
 
     obs_mod.flush()  # 例外が出なければ OK
+
+
+def test_logging_handler_attached_when_logfire_enabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LOGFIRE_TOKEN がある時、root logger に LogfireLoggingHandler(WARNING) が attach される。"""
+    import importlib
+    import logging
+
+    import logfire
+
+    import digest.observability as obs_mod
+
+    monkeypatch.setenv("LOGFIRE_TOKEN", "dummy-token")
+    monkeypatch.setattr(logfire, "configure", lambda **_: None)
+    monkeypatch.setattr(logfire, "info", lambda *_a, **_kw: None)
+    monkeypatch.setattr(logfire, "force_flush", lambda: None)
+    importlib.reload(obs_mod)
+
+    root = logging.getLogger()
+    handlers_before = list(root.handlers)
+    try:
+        obs_mod.init_observability(dry_run=True, run_id="test-bridge")
+
+        attached = [h for h in root.handlers if isinstance(h, logfire.LogfireLoggingHandler)]
+        assert len(attached) == 1
+        assert attached[0].level == logging.WARNING
+    finally:
+        for h in root.handlers[:]:
+            if isinstance(h, logfire.LogfireLoggingHandler) and h not in handlers_before:
+                root.removeHandler(h)
+        importlib.reload(obs_mod)
+
+
+def test_logging_handler_not_attached_without_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """LOGFIRE_TOKEN が未設定の時、root logger に LogfireLoggingHandler が追加されない。"""
+    import importlib
+    import logging
+
+    import logfire
+
+    import digest.observability as obs_mod
+
+    monkeypatch.delenv("LOGFIRE_TOKEN", raising=False)
+    importlib.reload(obs_mod)
+
+    root = logging.getLogger()
+    obs_mod.init_observability(dry_run=True, run_id="test-no-bridge")
+
+    attached = [h for h in root.handlers if isinstance(h, logfire.LogfireLoggingHandler)]
+    assert len(attached) == 0
+
+
+def test_logging_handler_not_duplicated_on_reinit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """init_observability を 2 回呼んでも LogfireLoggingHandler は 1 つだけ attach される。"""
+    import importlib
+    import logging
+
+    import logfire
+
+    import digest.observability as obs_mod
+
+    monkeypatch.setenv("LOGFIRE_TOKEN", "dummy-token")
+    monkeypatch.setattr(logfire, "configure", lambda **_: None)
+    monkeypatch.setattr(logfire, "info", lambda *_a, **_kw: None)
+    monkeypatch.setattr(logfire, "force_flush", lambda: None)
+    importlib.reload(obs_mod)
+
+    root = logging.getLogger()
+    handlers_before = list(root.handlers)
+    try:
+        obs_mod.init_observability(dry_run=True, run_id="test-dup-1")
+        obs_mod.init_observability(dry_run=True, run_id="test-dup-2")
+
+        attached = [h for h in root.handlers if isinstance(h, logfire.LogfireLoggingHandler)]
+        assert len(attached) == 1
+    finally:
+        for h in root.handlers[:]:
+            if isinstance(h, logfire.LogfireLoggingHandler) and h not in handlers_before:
+                root.removeHandler(h)
+        importlib.reload(obs_mod)

@@ -39,6 +39,9 @@ def init_observability(dry_run: bool, run_id: str) -> None:
             service_name="morning-brief",
             environment="dev" if dry_run else "prod",
         )
+        root = logging.getLogger()
+        if not any(isinstance(h, logfire.LogfireLoggingHandler) for h in root.handlers):
+            root.addHandler(logfire.LogfireLoggingHandler(level=logging.WARNING))
         logfire.info("observability initialized", run_id=run_id)
         _logfire_initialized = True
         logger.info("Logfire enabled run_id=%s", run_id)
