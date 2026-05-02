@@ -9,6 +9,7 @@ from google import genai
 from google.genai import types as genai_types
 
 from digest.models import Digest, Email
+from digest.observability import trace_llm
 
 
 @dataclass(frozen=True)
@@ -17,6 +18,7 @@ class GeminiClient:
 
     client: Any  # google.genai.Client。gmail_client と同じく Any で統一
 
+    @trace_llm("gemini.summarize")
     def summarize(
         self,
         emails: list[Email],

@@ -276,6 +276,24 @@ hermes_bridge.observe_session(session_log)
 
 **影響**: OAuth 認可画面に「メールの読み取り、構成、削除、送信」と表示されるが (Google 側の固定表記)、実際に送信は行わない。利用者への説明は `docs/setup.md` (T1.13) で補足する。
 
+### ADR-010: オブザーバビリティバックエンドを LangSmith + Logfire の二段構成にする
+
+**決定**: LLM 入出力の追跡に LangSmith、処理フロー (Phase 1-5) の可視化に Logfire (OTel ベース) を採用する。
+
+**理由**:
+
+- LangSmith は `@traceable` デコレータ 1 行で LLM 入出力・プロンプト・トークン数・レイテンシを記録でき、プロンプト diff や入出力比較 UI が充実している。`google-genai` 直叩きでも LangChain 不要で使える。
+- Logfire は Pydantic 製で OTel 標準に準拠。本プロジェクトの Pydantic v2 との親和性が高く、Modal の short-lived 関数にも `force_flush()` 1 呼び出しで対応できる。
+- 役割分担することで「LLM の品質」(LangSmith) と「処理の遅延・失敗箇所」(Logfire) を別々の専用 UI で追跡できる。
+
+**実装境界**: `langsmith` / `logfire` の import は `src/digest/observability.py` 1 ファイルに集約し、他モジュールは薄いラッパ (`trace_llm`, `span`, `flush`) 経由で使う。アーキテクチャテスト (`test_observability_imports.py`) で強制する。
+
+**trace 相関**: `digest_job` 開始時に発番した `run_id` を LangSmith の `metadata` と Logfire span の attribute 両方に埋め、後から突き合わせ可能にする。
+
+**フォールバック**: クレデンシャル (`LANGSMITH_API_KEY`, `LOGFIRE_TOKEN`) 未設定時は no-op。ローカル `just test` / `just dry-run` への影響なし。
+
+**トレードオフ**: LangSmith と Logfire の 2 つの UI を使い分ける必要がある。統合 UI が欲しくなった場合は Logfire 1 本に寄せるか、LangSmith の OTel エクスポート機能を使う。
+
 ## 5. 拡張ポイント
 
 ### 5.1 配信先の追加 (Notifier)
