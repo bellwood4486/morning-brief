@@ -118,7 +118,11 @@ def _phase2_fetch_emails(gmail: Any, label: str, lookback_hours: int) -> list[An
 
 def _phase3_summarize(gemini: Any, emails: list[Any], prompt: str, model: str) -> Any:
     digest = gemini.summarize(emails, prompt, model)
-    logger.info("Phase 3: summarized %d tldr_items, %d details", len(digest.tldr_items), len(digest.details))
+    logger.info(
+        "Phase 3: summarized %d tldr_items, %d details",
+        len(digest.tldr_items),
+        len(digest.details),
+    )
     return digest
 
 

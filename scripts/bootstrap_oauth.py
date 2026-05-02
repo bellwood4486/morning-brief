@@ -1,10 +1,11 @@
 #!/usr/bin/env python
-"""Gmail OAuth 認証情報を取得して Modal Secrets 登録コマンドを出力するローカル実行スクリプト。"""
+"""Gmail OAuth 認証情報を取得して Modal Secrets に自動登録するローカル実行スクリプト。"""
 
 import argparse
 import logging
 import os
-import shlex
+import subprocess
+import sys
 from pathlib import Path
 
 # Desktop OAuth フロー: ブラウザを起動してリダイレクト URI をローカルサーバで受け取る
@@ -14,21 +15,46 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 # gmail.readonly では mark_processed が動作しない (ADR-009 参照)。
 SCOPES = ["https://www.googleapis.com/auth/gmail.modify"]
 
-_MODAL_SECRET_NAME = "gmail-oauth"
+_DEFAULT_MODAL_SECRET_NAME = "gmail-oauth"
 _ENV_VAR_NAME = "GMAIL_OAUTH_JSON"
 
 logger = logging.getLogger(__name__)
 
 
-def build_modal_secret_command(secret_name: str, env_var: str, json_payload: str) -> str:
-    """Modal Secrets 登録コマンドを組み立てる。"""
-    return f"modal secret create {shlex.quote(secret_name)} {env_var}={shlex.quote(json_payload)}"
+def register_modal_secret(secret_name: str, json_payload: str) -> None:
+    """json_payload を subprocess 経由で Modal Secrets に登録する。"""
+    result = subprocess.run(
+        [
+            "uv",
+            "run",
+            "modal",
+            "secret",
+            "create",
+            secret_name,
+            f"{_ENV_VAR_NAME}={json_payload}",
+        ],
+        check=False,
+    )
+    if result.returncode != 0:
+        print(
+            "自動登録に失敗しました。uv run modal token new 済みか確認してから、"
+            f"gmail_oauth.json を cat して手動で登録してください:\n"
+            f'  uv run modal secret create {secret_name} {_ENV_VAR_NAME}="$(cat gmail_oauth.json)"',
+            file=sys.stderr,
+        )
+        raise SystemExit(1)
+    print(f"{secret_name} を Modal Secrets に登録しました。", file=sys.stderr)
+    print(
+        "gmail_oauth.json と credentials.json をローカルに保管し、"
+        "リポジトリにはコミットしないでください。",
+        file=sys.stderr,
+    )
 
 
 def main() -> None:
     # argparse: コマンドライン引数を宣言的に定義する標準ライブラリの CLI パーサー
     parser = argparse.ArgumentParser(
-        description="Gmail OAuth フローを実行し、Modal Secrets 登録コマンドを出力する"
+        description="Gmail OAuth フローを実行し、Modal Secrets に自動登録する"
     )
     parser.add_argument(
         "--credentials",
@@ -45,6 +71,16 @@ def main() -> None:
         type=int,
         default=0,
         help="ローカルサーバのポート番号 (0 = 自動採番, 既定: 0)",
+    )
+    parser.add_argument(
+        "--secret-name",
+        default=_DEFAULT_MODAL_SECRET_NAME,
+        help=f"Modal Secrets の名前 (既定: {_DEFAULT_MODAL_SECRET_NAME})",
+    )
+    parser.add_argument(
+        "--no-register",
+        action="store_true",
+        help="Modal Secrets への登録をスキップして JSON 生成のみ行う",
     )
     args = parser.parse_args()
 
@@ -70,11 +106,8 @@ def main() -> None:
     os.chmod(output_path, 0o600)
     logger.info("認証情報を %s に書き出しました (パーミッション: 0o600)", args.output)
 
-    command = build_modal_secret_command(_MODAL_SECRET_NAME, _ENV_VAR_NAME, json_str)
-    print("\n以下のコマンドで Modal Secrets に登録してください:\n")
-    print(f"  {command}\n")
-    print("登録後は gmail_oauth.json と credentials.json をローカルに保管し、")
-    print("リポジトリにはコミットしないでください。")
+    if not args.no_register:
+        register_modal_secret(args.secret_name, json_str)
 
 
 if __name__ == "__main__":
