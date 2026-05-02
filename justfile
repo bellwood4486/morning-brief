@@ -55,3 +55,7 @@ dry-run:
 # Modal 本番実行 (手動トリガ)
 run:
     uv run modal run modal_app.py::digest_job
+
+# Modal にデプロイ (Cron 有効化)
+deploy:
+    uv run modal deploy modal_app.py
