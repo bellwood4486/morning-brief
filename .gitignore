@@ -15,6 +15,7 @@ build/
 .env
 credentials.json
 gmail_oauth.json
+config.yaml
 
 # Editor/OS
 .DS_Store
