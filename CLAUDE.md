@@ -108,6 +108,12 @@ just dry-run
 
 # Modal 本番実行 (手動トリガ)
 just run
+
+# Modal の実行ログ確認 (デプロイ後の警告・エラー調査)
+uv run modal app logs morning-brief --since 1h        # 直近1時間
+uv run modal app logs morning-brief --tail 500        # 末尾500行
+uv run modal app logs morning-brief -f                # ストリーム
+uv run modal app logs <ap-XXXXXXXX>                   # ダッシュボード URL の app-id でも可
 ```
 
 ## 検証ルーチン
