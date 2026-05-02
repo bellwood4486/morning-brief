@@ -4,7 +4,12 @@ from datetime import UTC, datetime
 
 import pytest
 
-from digest.formatter import empty_digest_blocks, to_block_kit
+from digest.formatter import (
+    digest_fallback_text,
+    empty_digest_blocks,
+    empty_digest_fallback_text,
+    to_block_kit,
+)
 from digest.models import DetailItem, Digest, TldrItem
 
 
@@ -194,3 +199,61 @@ def test_to_block_kit_returns_only_dicts() -> None:
     digest = _make_digest()
     blocks = to_block_kit(digest)
     assert all(isinstance(b, dict) for b in blocks)
+
+
+# --- digest_fallback_text ---
+
+
+def test_digest_fallback_text_contains_jst_date() -> None:
+    digest = _make_digest()
+    result = digest_fallback_text(digest)
+    assert "2026-04-28" in result
+
+
+def test_digest_fallback_text_uses_jst_not_utc() -> None:
+    # UTC 22:00 = JST 翌 07:00 なので JST 日付は翌日になる。
+    digest = Digest(
+        tldr_items=[
+            TldrItem(
+                title_ja="t",
+                summary_ja="s",
+                source_url="https://example.com",
+                source_email_id="e1",
+            )
+        ],
+        details=[],
+        generated_at=datetime(2026, 4, 27, 22, 0, 0, tzinfo=UTC),
+    )
+    result = digest_fallback_text(digest)
+    assert "2026-04-28" in result
+    assert "2026-04-27" not in result
+
+
+def test_digest_fallback_text_contains_tldr_count() -> None:
+    # TL;DR 件数が通知バナーで確認できることを保証する。
+    digest = _make_digest(tldr_n=5)
+    result = digest_fallback_text(digest)
+    assert "5" in result
+
+
+# --- empty_digest_fallback_text ---
+
+
+def test_empty_digest_fallback_text_contains_jst_date() -> None:
+    generated_at = datetime(2026, 4, 28, 0, 0, 0, tzinfo=UTC)
+    result = empty_digest_fallback_text(generated_at)
+    assert "2026-04-28" in result
+
+
+def test_empty_digest_fallback_text_uses_jst_not_utc() -> None:
+    # UTC 22:00 = JST 翌 07:00 なので JST 日付は翌日になる。
+    generated_at = datetime(2026, 4, 27, 22, 0, 0, tzinfo=UTC)
+    result = empty_digest_fallback_text(generated_at)
+    assert "2026-04-28" in result
+    assert "2026-04-27" not in result
+
+
+def test_empty_digest_fallback_text_indicates_no_emails() -> None:
+    generated_at = datetime(2026, 4, 28, 0, 0, 0, tzinfo=UTC)
+    result = empty_digest_fallback_text(generated_at)
+    assert "対象メールなし" in result

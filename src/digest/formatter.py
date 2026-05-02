@@ -13,6 +13,18 @@ _JST = ZoneInfo("Asia/Tokyo")
 _MUTE_ACTION_ID = "mute"
 
 
+def digest_fallback_text(digest: Digest) -> str:
+    """Slack push 通知・スクリーンリーダー用の fallback テキストを返す。"""
+    date_str = digest.generated_at.astimezone(_JST).strftime("%Y-%m-%d")
+    return f"Tech Newsletter Digest {date_str} (JST) — TL;DR {len(digest.tldr_items)} 件"
+
+
+def empty_digest_fallback_text(generated_at: datetime) -> str:
+    """対象メールなし時の fallback テキストを返す。"""
+    date_str = generated_at.astimezone(_JST).strftime("%Y-%m-%d")
+    return f"Tech Newsletter Digest {date_str} (JST) — 本日は対象メールなし"
+
+
 def to_block_kit(digest: Digest) -> list[dict[str, Any]]:
     """Digest を Slack Block Kit の dict リストに変換する。"""
     blocks: list[dict[str, Any]] = []

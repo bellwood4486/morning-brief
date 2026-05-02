@@ -19,8 +19,8 @@ class SlackNotifier:
         self._client = client
         self._channel = channel
 
-    def send(self, blocks: list[dict[str, Any]]) -> PostedMessage:
-        response = self._client.chat_postMessage(channel=self._channel, blocks=blocks)
+    def send(self, blocks: list[dict[str, Any]], *, text: str) -> PostedMessage:
+        response = self._client.chat_postMessage(channel=self._channel, blocks=blocks, text=text)
         # SlackResponse.__getitem__ は Any | None を返す。chat.postMessage 成功時は str である
         # という API 契約を cast で表明する。
         ts = cast(str, response["ts"])

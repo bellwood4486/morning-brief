@@ -42,16 +42,30 @@ def test_send_calls_chat_postmessage_with_channel_and_blocks(
     blocks = [{"type": "section", "text": {"type": "mrkdwn", "text": "hello"}}]
     client.chat_postMessage.return_value = _slack_response({"ts": _TS})
 
-    notifier.send(blocks)
+    notifier.send(blocks, text="hello")
 
-    client.chat_postMessage.assert_called_once_with(channel="#newsletter-digest", blocks=blocks)
+    client.chat_postMessage.assert_called_once_with(
+        channel="#newsletter-digest", blocks=blocks, text="hello"
+    )
+
+
+def test_send_passes_text_to_chat_postmessage(mocker: MockerFixture) -> None:
+    # 仕様: 呼び出し側が指定した fallback text は変更されず Slack API に転送される。
+    notifier, client = _make_notifier(mocker)
+    client.chat_postMessage.return_value = _slack_response({"ts": _TS})
+    notification_text = "Tech Newsletter Digest 2026-05-02 (JST) — TL;DR 3 件"
+
+    notifier.send([], text=notification_text)
+
+    _, kwargs = client.chat_postMessage.call_args
+    assert kwargs["text"] == notification_text
 
 
 def test_send_returns_posted_message_with_ts_as_message_id(mocker: MockerFixture) -> None:
     notifier, client = _make_notifier(mocker)
     client.chat_postMessage.return_value = _slack_response({"ts": _TS})
 
-    result = notifier.send([])
+    result = notifier.send([], text="dummy")
 
     assert result.message_id == _TS
 
@@ -60,7 +74,7 @@ def test_send_posted_at_is_aware_utc_from_ts(mocker: MockerFixture) -> None:
     notifier, client = _make_notifier(mocker)
     client.chat_postMessage.return_value = _slack_response({"ts": _TS})
 
-    result = notifier.send([])
+    result = notifier.send([], text="dummy")
 
     expected = datetime.fromtimestamp(float(_TS), tz=UTC)
     assert result.posted_at == expected
@@ -71,7 +85,7 @@ def test_send_posted_message_channel_matches_constructor(mocker: MockerFixture) 
     notifier, client = _make_notifier(mocker, channel="#custom-channel")
     client.chat_postMessage.return_value = _slack_response({"ts": _TS})
 
-    result = notifier.send([])
+    result = notifier.send([], text="dummy")
 
     assert result.channel == "#custom-channel"
 
@@ -81,7 +95,7 @@ def test_send_blocks_passed_through_unchanged(mocker: MockerFixture) -> None:
     blocks = [{"type": "header"}, {"type": "section"}]
     client.chat_postMessage.return_value = _slack_response({"ts": _TS})
 
-    notifier.send(blocks)
+    notifier.send(blocks, text="dummy")
 
     _, kwargs = client.chat_postMessage.call_args
     assert kwargs["blocks"] == blocks
