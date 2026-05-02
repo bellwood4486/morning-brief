@@ -50,8 +50,8 @@ check: secrets lint fmt-check type test test-arch md-lint
 
 # Modal ドライラン (送信せず最終 Markdown を stdout に出す)
 dry-run:
-    modal run modal_app.py::digest_job --dry-run
+    uv run modal run modal_app.py::digest_job --dry-run
 
 # Modal 本番実行 (手動トリガ)
 run:
-    modal run modal_app.py::digest_job
+    uv run modal run modal_app.py::digest_job
