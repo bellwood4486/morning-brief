@@ -153,8 +153,12 @@ Slack ワークスペースで以下の 2 チャンネルを作成する。
 
 ### 6.5 Modal Secret の登録
 
+シェル履歴への平文露出を防ぐため、対話入力で値を渡す (`-r` は backslash エスケープを無効化、`unset` は環境変数の残留を防ぐ)。
+
 ```bash
-uv run modal secret create slack-bot-token SLACK_BOT_TOKEN=xoxb-xxxx...
+read -rs SLACK_BOT_TOKEN
+uv run modal secret create slack-bot-token SLACK_BOT_TOKEN="$SLACK_BOT_TOKEN"
+unset SLACK_BOT_TOKEN
 ```
 
 ### 成功確認
@@ -210,8 +214,12 @@ ls -l gmail_oauth.json  # パーミッション 600 であること
 
 > **重要**: **Vertex AI ではなく AI Studio** の API key を使う。Vertex AI はサービスアカウント JSON が必要で Modal との統合が煩雑になるため採用しない ([design.md](design.md) ADR-003)。
 
+シェル履歴への平文露出を防ぐため、対話入力で値を渡す。
+
 ```bash
-uv run modal secret create gemini-api-key GEMINI_API_KEY=AIza...
+read -rs GEMINI_API_KEY
+uv run modal secret create gemini-api-key GEMINI_API_KEY="$GEMINI_API_KEY"
+unset GEMINI_API_KEY
 ```
 
 ### 成功確認
