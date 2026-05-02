@@ -27,7 +27,7 @@ def init_observability(dry_run: bool, run_id: str) -> None:
 
     api_key = os.environ.get("LANGSMITH_API_KEY")
     if api_key:
-        project = "morning-brief-dev" if dry_run else "morning-brief"
+        project = "morning-brief-dev" if dry_run else "morning-brief-prod"
         os.environ.setdefault("LANGSMITH_TRACING", "true")
         os.environ["LANGSMITH_PROJECT"] = project
         logger.info("LangSmith enabled: project=%s run_id=%s", project, run_id)
@@ -37,7 +37,7 @@ def init_observability(dry_run: bool, run_id: str) -> None:
         logfire.configure(
             token=token,
             service_name="morning-brief",
-            environment="dry-run" if dry_run else "production",
+            environment="dev" if dry_run else "prod",
         )
         logfire.info("observability initialized", run_id=run_id)
         _logfire_initialized = True
