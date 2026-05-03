@@ -53,27 +53,27 @@
 ### FR-3: Slack 配信
 
 - 個人用 Slack workspace の `#newsletter-digest` channel に投稿する。
-- Block Kit でフォーマットし、各記事ブロックに以下のインタラクション要素を付ける:
-  - リアクション促し: 👍 (もっとこういうの), 👎 (要らない), 🔥 (深掘り希望)
-  - ボタン: `[ミュート]` (送信元を今後除外)
+- Block Kit でフォーマットし、各記事ブロックにリアクション促しを付ける:
+  - 👍 (もっとこういうの), 👎 (要らない), 🔥 (深掘り希望), 🔇 (送信元ミュート希望)
+- `[ミュート]` ボタンは廃止済み (Sprint 2 / D-3)。ミュート意思は 🔇 リアクションで表明する
 - 件名相当のヘッダーに日付 (`YYYY-MM-DD`) を含める。
 
 ### FR-4: HITL フィードバック収集
 
 - 翌朝の実行時、前日のダイジェスト投稿に対する以下を収集する:
-  - 各記事ブロックへの絵文字リアクション
-  - `[ミュート]` ボタンのクリック (送信元情報を含む)
+  - 各記事ブロックへの絵文字リアクション (👍/👎/🔥/🔇 等)
+  - 🔇 リアクション (送信元ミュート意思表示)
   - スレッド返信 (自由記述)
-- 収集したフィードバックを Hermes に渡し、USER.md / skills の更新材料とする。
+- 収集したフィードバックを Slack `#brief-to-hermes` 経由で Hermes (別ホスト常駐 / ADR-011) に渡し、USER.md / MEMORY.md の更新材料とする。
 
 ### FR-5: 学習・成長
 
-- Hermes Agent を内蔵し、永続状態を Modal Volume に保存する。
-- 永続化対象: USER.md, MEMORY.md, スキル SQLite DB。
+- Hermes Agent を別ホストで常駐させ、Slack `#brief-to-hermes` 経由でフィードバックを受け取る (案A / ADR-011)。
+- 永続化は Hermes ホスト側で行う。morning-brief 側の Modal Volume には `state/last_digest.json` のみ保存。
 - フィードバックに応じて以下が更新されることを期待する:
-  - USER.md: 好むトピック / 嫌うトピックの記述
-  - スキル: 要約の癖、トピック分類、深掘り判断
-  - 設定 (`config.yaml`): ミュートされた送信元のブラックリスト
+  - USER.md: 好むトピック / 嫌うトピックの記述 (Hermes ホスト側)
+  - MEMORY.md: 長期記憶 (Hermes ホスト側)
+  - スキル: 要約の癖、トピック分類、深掘り判断 (Hermes ホスト側)
 
 ### FR-6: ドライラン
 
@@ -146,12 +146,12 @@
 - リポジトリは秘匿情報を含まない状態で push できる。
 - `just check` がグリーン。
 
-### Sprint 2 完了基準 (学習目的の本丸)
+### Sprint 2 完了基準 (T2.1 + T2.2 のみ)
 
-- HITL フィードバックが Hermes に反映される経路が動いている。
-- `docs/observation.md` に 2 週間以上の観察ログがある。
-- `scripts/weekly_report.py` が Hermes の状態を Slack に投稿する。
-- USER.md の初期状態と現在の差分が確認でき、明らかに学習が進んでいる証跡がある。
+- フィードバックが `#brief-to-hermes` に投函されている (Hermes ホスト構築自体は別タスク / ADR-011)。
+- `just check` がグリーン。
+
+> Hermes ホスト側での反映観察 / `docs/observation.md` / `scripts/weekly_report.py` は Sprint 3+ で整備する。
 
 ### Sprint 3 完了基準
 

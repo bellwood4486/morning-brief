@@ -12,14 +12,13 @@
 │  Modal Function: digest_job                                         │
 │                                                                    │
 │  ┌─────────────────────────────────────────────────────────────┐   │
-│  │ Modal Volume: ~/.hermes/                                     │   │
-│  │   ├─ USER.md         (drift-adjusting user model)            │   │
-│  │   ├─ MEMORY.md       (general knowledge)                     │   │
-│  │   └─ skills.db       (SQLite, FTS5, auto-generated skills)   │   │
+│  │ Modal Volume: /root/.hermes/                                 │   │
+│  │   └─ state/last_digest.json  (前日の Slack message_id)       │   │
 │  └─────────────────────────────────────────────────────────────┘   │
 │                                                                    │
-│  Phase 1: feedback.collect_from_slack(yesterday)                   │
-│           └─ Hermes に注入 (USER.md / skills 更新)                 │
+│  Phase 1: notifier.collect_feedback(yesterday_msg_id)              │
+│           └─ hermes_bridge.inject_feedback(feedbacks)              │
+│              → #brief-to-hermes に投函 (ADR-011)                   │
 │                                                                    │
 │  Phase 2: gmail_client.fetch_unread(label, since=24h)              │
 │           ↓                                                        │
@@ -29,20 +28,23 @@
 │           ↓                                                        │
 │           Notifier.send(blocks) → SlackNotifier                    │
 │           ↓                                                        │
-│  Phase 5: Hermes がログを観察してスキル自動生成・改善              │
+│  Phase 5: hermes_bridge.observe_session(session_log)               │
 │           └─ gmail_client.mark_processed(emails)                   │
 └────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-        ┌─────────────────────────┴──────────────────────────┐
-        ▼                                                     ▼
-┌───────────────────┐                              ┌───────────────────┐
-│ #newsletter-digest │                              │ #alerts           │
-│ (ダイジェスト)     │                              │ (失敗時通知)      │
-└───────────────────┘                              └───────────────────┘
-        │
-        ▼ 翌朝 Phase 1 で polling
-   リアクション / ボタン / スレッド返信
+                    │                    │
+          ┌─────────┘           ┌────────┘
+          ▼                     ▼
+┌──────────────────┐  ┌──────────────────┐  ┌────────────────────────┐
+│ #newsletter-     │  │ #alerts          │  │ #brief-to-hermes       │
+│ digest           │  │ (失敗時通知)      │  │ (Sprint 2 / ADR-011)   │
+│ (ダイジェスト)    │  └──────────────────┘  └────────────┬───────────┘
+└──────────────────┘                                      │ Slack Socket Mode
+        │                                                 ▼ (WebSocket 常駐)
+        ▼ 翌朝 Phase 1 で polling                ┌───────────────────┐
+   リアクション (👍/👎/🔥/🔇) / スレッド返信      │ Hermes Agent      │
+                                                │ (別ホスト常駐)     │
+                                                │ USER.md / MEMORY.md│
+                                                └───────────────────┘
 ```
 
 外部依存:
@@ -84,27 +86,30 @@
 
 - `to_block_kit(digest) -> list[dict]`
 - Slack Block Kit の dict リストに変換
-- リアクション促し絵文字 / ミュートボタンを各 detail block に付与
-- ボタンの `action_id` には送信元情報を埋め込む (Phase 1 で復元できるように)
+- リアクション促し (👍/👎/🔥/🔇) を各 detail block の context に付与
+- `[ミュート]` ボタンは廃止済み (Sprint 2 / D-3)。ミュート意思は 🔇 リアクションで表明する
 
 ### 2.5 `src/digest/notifiers/`
 
 - `base.py`: `Notifier` Protocol を定義 (`send(blocks) -> PostedMessage`, `collect_feedback(message_id) -> list[Feedback]`)
 - `slack.py`: 唯一の現状実装。`slack_sdk` の import はこのファイル限定。
 
-### 2.6 `src/digest/feedback.py`
+### 2.6 `src/digest/notifiers/slack.py` (フィードバック収集)
 
-- `collect_from_slack(yesterday_message_id) -> list[Feedback]`
-- リアクション、ボタンクリック、スレッド返信を統合した `Feedback` リストを返す
-- Hermes 側でどう扱うかはこのモジュールの関心外 (返すだけ)
+- フィードバック収集は `Notifier.collect_feedback(message_id)` に統合済み (Sprint 1 で `SlackNotifier` に実装)
+- `Feedback` 型は `models.py` に集約: `Feedback = ReactionFeedback | ThreadReplyFeedback`
+- `ReactionFeedback`: 絵文字リアクション (👍/👎/🔥/🔇 等)
+- `ThreadReplyFeedback`: スレッド返信 (自由記述)
+- ButtonFeedback は廃止済み (Sprint 2 / D-3 参照)。interactivity webhook を使わない案A 方針と整合
 
 ### 2.7 `src/digest/hermes_bridge.py`
 
-- Hermes との橋渡し
-- `inject_feedback(feedbacks)`: フィードバックを Hermes に渡す
-- `observe_session(session_log)`: ジョブ実行ログを渡し、スキル自動生成のトリガに
-- 永続状態は Modal Volume にマウントされた `~/.hermes/` に Hermes 自身が書く
-- `last_digest_message_id` の永続化: `~/.hermes/state/last_digest.json` に `{"message_id": "..."}` で保存。書き込みは一時ファイル + `os.replace` で原子的に行い、Modal Function の途中停止で破損 JSON が残らないことを保証する。冪等性: 同値の `set` は内容変化なし。Phase 4 全体としてのリトライ冪等性は `modal_app.py` 側の責務。
+- Hermes 連携の窓口。Sprint 2 から「state I/O + Slack DM 投函」の両方を担う
+- `get/set_last_message_id()`: Modal Volume の `state/last_digest.json` に前日 Slack `ts` を原子的に読み書き (一時ファイル + `os.replace`)
+- `inject_feedback(feedbacks)` (Sprint 2 で本実装): `Notifier` (DI) 経由で `#brief-to-hermes` に mrkdwn サマリ + JSON ペイロードを投函。fire-and-forget (ADR-011)
+- `observe_session(session_log)` (T2.3 で本実装): セッションログを Hermes に渡してスキル自動生成をトリガ
+- **Hermes 自身の永続状態** (USER.md / MEMORY.md / skills) は **Hermes ホスト側** にあり、morning-brief からは直接触れない (案A / ADR-011)
+- Modal Volume `/root/.hermes/` には `state/last_digest.json` のみ。USER.md / MEMORY.md / skills.db は morning-brief 側の Volume には存在しない
 
 ### 2.8 `seeds/`
 
@@ -118,12 +123,14 @@
 ### Phase 1: 前日フィードバック回収
 
 ```python
-yesterday_message_id = Hermes.get("last_digest_message_id")
-feedbacks = feedback.collect_from_slack(yesterday_message_id)
-hermes_bridge.inject_feedback(feedbacks)
+yesterday_message_id = hermes_bridge.get_last_message_id()
+if yesterday_message_id is None:
+    return  # 初回起動時は skip
+feedbacks = notifier.collect_feedback(yesterday_message_id)
+hermes_bridge.inject_feedback(feedbacks)  # #brief-to-hermes に投函
 ```
 
-`yesterday_message_id` は前日 Phase 4 完了時に Hermes に保存しておく。Hermes に持たせる理由は、Modal Volume の永続化に任せられるため (別途 KV ストア不要)。
+`yesterday_message_id` は前日 Phase 4 完了時に Modal Volume の `state/last_digest.json` に保存する (Hermes ホスト側とは別の状態)。
 
 ### Phase 2: メール取得
 
@@ -175,7 +182,6 @@ hermes_bridge.observe_session(session_log)
 
 - ambient agent + serverless persistence というパラダイムを学ぶこと自体に価値がある。Modal Volume のハイバネート/起き上がりの体験は他で得にくい。
 - アイドル中のコストがほぼゼロ。Modal の無料枠で完結する見込み。
-- Hermes が Modal をネイティブバックエンドとしてサポートしている。
 
 **トレードオフ**:
 
@@ -240,7 +246,7 @@ hermes_bridge.observe_session(session_log)
 **理由**:
 
 - Events API (HTTPS webhook) は Modal web endpoint で受けられるが、ボタンクリックを即時処理する要件がない。
-- Socket Mode は WebSocket 常駐が必要で、Modal の serverless 文脈と相反する。コスト優位性を失う。
+- Socket Mode は WebSocket 常駐が必要で、Modal の serverless 文脈と相反する。Hermes Slack Gateway も Socket Mode (`AsyncSocketModeHandler`) 専用であり、同じ制約から Hermes ホストを別途常駐させる必要がある (ADR-011 参照)。
 - Polling は構造がシンプルで、Phase 1 として既存の Phase 構造に自然に乗る。
 - 即時性が要らない (フィードバックは翌朝の生成で活きればよい) ため、polling のレイテンシは無問題。
 
@@ -293,6 +299,29 @@ hermes_bridge.observe_session(session_log)
 **フォールバック**: クレデンシャル (`LANGSMITH_API_KEY`, `LOGFIRE_TOKEN`) 未設定時は no-op。ローカル `just test` / `just dry-run` への影響なし。
 
 **トレードオフ**: LangSmith と Logfire の 2 つの UI を使い分ける必要がある。統合 UI が欲しくなった場合は Logfire 1 本に寄せるか、LangSmith の OTel エクスポート機能を使う。
+
+### ADR-011: Hermes は別ホスト常駐 / morning-brief とは Slack ハブ経由で疎結合
+
+**決定**: Hermes は morning-brief とは別の常駐ホスト (Oracle Cloud Always Free / fly.io / VPS 等) に置き、Slack の専用チャネルを中継ハブとして通信する。
+
+- `#brief-to-hermes`: morning-brief → Hermes (日次フィードバック中継、Sprint 2)
+- `#hermes-to-brief`: Hermes → morning-brief (プロンプト改善案中継、Sprint 3+ 想定)
+
+**背景**: Hermes Slack Gateway の実装 (`nousresearch/hermes-agent` 内 `gateway/platforms/slack.py`) は Socket Mode (`AsyncSocketModeHandler`) 専用で、WebSocket 常駐が必須。Modal serverless では動かせないことが判明した。当初は「Hermes を Modal で動かす / Modal Sandbox で起動する」案を検討したが、いずれも Socket Mode の常駐要件と相反する。
+
+**選択肢**:
+
+- A. **Slack ハブ経由 (採用)**: 両者 Slack のクライアントとして振る舞い、直接通信は持たない
+- B. Hermes 側に Web Endpoint を立てて morning-brief から HTTP で叩く: 認証管理が増える / 接続点が増える
+- C. 共有ストレージ (S3 等) 経由: 両者がストレージに依存し Slack 中心の運用と乖離
+
+**決定理由**: 案A は両者が完全に疎結合になり、片方がダウンしても他方は動く。Slack を Sprint 1 で既に使っているので新たな外部依存追加なし。デバッグも Slack UI で目視できる。
+
+**トレードオフ**:
+
+- Sprint 2 では Hermes ホスト構築まで踏み込まない (受け手不在で `#brief-to-hermes` への投函のみ動作確認する)
+- Slack 無料 plan の保持期間 (90 日) を超えると古い投函が消える。Hermes 立ち上げ後は直近 90 日分を初回読み込みで消費する前提で観察ログ (T2.5) を始める
+- Hermes 自身の永続状態 (USER.md / MEMORY.md / skills) は Hermes ホスト側にあり morning-brief からは直接観察できない。観察手段は Hermes ホスト側のファイル直視か、Hermes が `#hermes-to-brief` に発信するスナップショットに依存する
 
 ## 5. 拡張ポイント
 
