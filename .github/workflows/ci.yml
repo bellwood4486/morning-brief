@@ -1,4 +1,4 @@
-name: CI
+name: Lint, Test & Secrets Scan
 
 on:
   push:
