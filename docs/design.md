@@ -102,7 +102,7 @@
 
 ### 2.7 `src/digest/state_store.py` と `src/digest/user_md_updater.py`
 
-旧 `hermes_bridge.py` の責務を 2 ファイルに分割する (T2.2 / T2.4 で実装)。
+旧 `hermes_bridge.py` を T2.2 で削除済み。責務は T2.4 で 2 ファイルに分割して再実装する。
 
 **`state_store.py`**:
 
@@ -123,7 +123,6 @@
 - `MEMORY.md`: 長期記憶。同じく Gemini 提案 → 人間マージで更新
 - `summarize_prompt.md`: 要約プロンプト初期版。将来 Gemini が改善案を提案する想定 (Sprint 3+)
 - `user_initial.md`: USER.md を初めて作る際の記入テンプレ (不変)
-- `newsletter_digest.md`: **(廃止予定 / T2.2 で削除)** Hermes スキル定義として作成したが、Hermes 廃止 (ADR-012) に伴い用途消滅
 
 ## 3. データフロー (Phase 詳細)
 
