@@ -31,8 +31,11 @@ image = (
     .add_local_dir("seeds", remote_path="/root/seeds")
     .add_local_file("config.yaml", remote_path="/root/config.yaml")
 )
-volume = modal.Volume.from_name("morning-brief-hermes", create_if_missing=True)
+volume = modal.Volume.from_name("morning-brief-state", create_if_missing=True)
 app = modal.App("morning-brief")
+
+_VOLUME_MOUNT = Path("/root/.brief")
+_SEEDS_DIR = Path("/root/seeds")
 
 
 @app.function(
@@ -44,7 +47,7 @@ app = modal.App("morning-brief")
         modal.Secret.from_name("slack-bot-token"),
         modal.Secret.from_name("logfire"),
     ],
-    volumes={"/root/.hermes": volume},
+    volumes={str(_VOLUME_MOUNT): volume},
     timeout=600,
 )
 def digest_job(dry_run: bool = False) -> None:
@@ -60,9 +63,10 @@ def digest_job(dry_run: bool = False) -> None:
     from digest.notifiers.slack import build_slack_notifier
     from digest.observability import flush, init_observability, span
     from digest.seeds import load_seed
+    from digest.state_store import build_state_store
     from digest.summarize import build_gemini_client
+    from digest.user_md_updater import build_user_md_updater
 
-    # run_id は LangSmith run と Logfire span を後から突き合わせるための相関 ID
     run_id = uuid.uuid4().hex[:12]
     init_observability(dry_run, run_id)
 
@@ -71,9 +75,20 @@ def digest_job(dry_run: bool = False) -> None:
     alerts = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.alerts_channel)
     gmail = build_gmail_client(os.environ["GMAIL_OAUTH_JSON"], cfg.gmail.processed_label)
     gemini = build_gemini_client(os.environ["GEMINI_API_KEY"])
+    state_store = build_state_store(_VOLUME_MOUNT)
+    user_md_updater = build_user_md_updater(
+        api_key=os.environ["GEMINI_API_KEY"],
+        model_name=cfg.llm.model,
+    )
 
     try:
         with span("digest_job", run_id=run_id, dry_run=str(dry_run)):
+            with span("phase1.collect_feedback"):
+                try:
+                    _phase1_collect_feedback(notifier, state_store, dry_run)
+                except Exception as e:
+                    logger.warning("Phase 1 (collect_feedback) failed: %s", e, exc_info=True)
+
             with span("phase2.fetch_emails"):
                 emails = _phase2_fetch_emails(gmail, cfg.gmail.label, cfg.gmail.lookback_hours)
 
@@ -99,7 +114,9 @@ def digest_job(dry_run: bool = False) -> None:
             text = digest_fallback_text(digest)
             with span("phase4.publish"):
                 try:
-                    _phase4_publish(notifier, blocks, text, dry_run)
+                    posted = _phase4_publish(notifier, blocks, text, dry_run)
+                    if posted is not None:
+                        state_store.set_last_message_id(posted.message_id)
                 except Exception as e:
                     logger.exception("Phase 4 (send) failed")
                     _alert(alerts, f"Phase 4 (send) failed: {e}")
@@ -107,7 +124,7 @@ def digest_job(dry_run: bool = False) -> None:
                     return
 
             with span("phase5.postprocess"):
-                _phase5_postprocess(gmail, emails, dry_run)
+                _phase5_postprocess(gmail, emails, dry_run, state_store, user_md_updater)
     finally:
         flush()
 
@@ -115,6 +132,19 @@ def digest_job(dry_run: bool = False) -> None:
 # --- Phase 関数 ---
 # 各 Phase はロジックを持たず、対応モジュールへの委譲のみを行う (design.md §2.1)。
 # 引数型は Any: modal_app.py は mypy/pyright 対象外 (CLAUDE.md §実装方針 参照)。
+
+
+def _phase1_collect_feedback(notifier: Any, state_store: Any, dry_run: bool) -> None:
+    message_id = state_store.get_last_message_id()
+    if message_id is None:
+        logger.info("Phase 1: no previous message_id, skipping feedback collection")
+        return
+    feedbacks = notifier.collect_feedback(message_id)
+    logger.info("Phase 1: collected %d feedbacks for message_id=%s", len(feedbacks), message_id)
+    if not dry_run:
+        state_store.append_feedback(feedbacks)
+    else:
+        logger.info("Phase 1: dry_run=True, skip append (%d items)", len(feedbacks))
 
 
 def _phase2_fetch_emails(gmail: Any, label: str, lookback_hours: int) -> list[Any]:
@@ -151,12 +181,24 @@ def _phase4_publish_empty(notifier: Any, blocks: list[Any], text: str, dry_run: 
     logger.info("Phase 4: posted empty digest")
 
 
-def _phase5_postprocess(gmail: Any, emails: list[Any], dry_run: bool) -> None:
+def _phase5_postprocess(
+    gmail: Any,
+    emails: list[Any],
+    dry_run: bool,
+    state_store: Any,
+    user_md_updater: Any,
+) -> None:
     if dry_run:
         logger.info("Phase 5: dry_run=True, skipping Gmail label")
-        return
-    gmail.mark_processed(emails)
-    logger.info("Phase 5: marked %d emails as processed", len(emails))
+    else:
+        gmail.mark_processed(emails)
+        logger.info("Phase 5: marked %d emails as processed", len(emails))
+
+    user_md_updater.update_if_ready(
+        feedback_log_path=state_store.feedback_path,
+        seeds_dir=_SEEDS_DIR,
+        dry_run=dry_run,
+    )
 
 
 def _alert(alerts: Any, message: str) -> None:
