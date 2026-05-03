@@ -8,10 +8,6 @@ from digest.models import DetailItem, Digest, TldrItem
 
 _JST = ZoneInfo("Asia/Tokyo")
 
-# Block Kit button の action_id: アクション種別を表す固定値。
-# ミュート対象 sender は value に、元メール ID は block_id に持たせる (Sprint 2 T2.1 収集規約)。
-_MUTE_ACTION_ID = "mute"
-
 
 def digest_fallback_text(digest: Digest) -> str:
     """Slack push 通知・スクリーンリーダー用の fallback テキストを返す。"""
@@ -78,7 +74,6 @@ def _detail_blocks(item: DetailItem) -> list[dict[str, Any]]:
                 "type": "mrkdwn",
                 "text": f"*<{item.source_url}|{item.subject_ja}>*\n_{item.sender}_",
             },
-            "accessory": _mute_button(item),
         },
     ]
     if item.points:
@@ -98,15 +93,6 @@ def _detail_blocks(item: DetailItem) -> list[dict[str, Any]]:
     return blocks
 
 
-def _mute_button(item: DetailItem) -> dict[str, Any]:
-    return {
-        "type": "button",
-        "text": {"type": "plain_text", "text": "ミュート"},
-        "action_id": _MUTE_ACTION_ID,
-        "value": item.sender,
-    }
-
-
 def _glossary_context(glossary: dict[str, str]) -> dict[str, Any]:
     text = "\n".join(f"*{k}* — {v}" for k, v in glossary.items())
     return {
@@ -118,5 +104,10 @@ def _glossary_context(glossary: dict[str, str]) -> dict[str, Any]:
 def _reaction_hint_context() -> dict[str, Any]:
     return {
         "type": "context",
-        "elements": [{"type": "mrkdwn", "text": "👍 役立つ / 👎 興味なし / 🔥 もっと欲しい"}],
+        "elements": [
+            {
+                "type": "mrkdwn",
+                "text": "👍 役立つ / 👎 興味なし / 🔥 もっと欲しい / 🔇 送信元ミュート",
+            },  # noqa: E501
+        ],
     }

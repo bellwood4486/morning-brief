@@ -334,7 +334,7 @@ feedback → USER.md 自動更新 → Git PR のサイクルを動かし、ambie
 
 #### 進捗
 
-- [ ] T2.1 ButtonFeedback 廃止 / 🔇 リアクション統一 / formatter からミュートボタン削除
+- [x] T2.1 ButtonFeedback 廃止 / 🔇 リアクション統一 / formatter からミュートボタン削除
 - [ ] T2.2 Hermes 関連コード削除 (`hermes_bridge.py` / `seeds/newsletter_digest.md` / 関連テスト / アーキテクチャテスト調整)
 - [ ] T2.3 PydanticAI 導入 + LangSmith 削除 + Logfire 1 本化 (`observability.py` / `summarize.py` 書き換え)
 - [ ] T2.4 `state_store.py` + `user_md_updater.py` 新規実装 (feedback.jsonl 蓄積 + Gemini diff 生成)

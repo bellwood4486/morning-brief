@@ -2,8 +2,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-import pytest
-
 from digest.formatter import (
     digest_fallback_text,
     empty_digest_blocks,
@@ -96,25 +94,12 @@ def test_to_block_kit_emits_one_divider_per_detail() -> None:
     assert len(dividers) == 2 + detail_n
 
 
-def test_to_block_kit_includes_mute_button_with_sender() -> None:
+def test_to_block_kit_detail_section_has_no_accessory() -> None:
     digest = _make_digest(detail_n=2)
     blocks = to_block_kit(digest)
     for i in range(2):
         detail_section = next(b for b in blocks if b.get("block_id") == f"detail:email-{i}")
-        button = detail_section["accessory"]
-        assert button["type"] == "button"
-        assert button["action_id"] == "mute"
-        assert button["value"] == f"sender{i}@example.com"
-
-
-@pytest.mark.parametrize("detail_n", [1, 2, 5])
-def test_to_block_kit_mute_button_present_for_various_detail_counts(detail_n: int) -> None:
-    digest = _make_digest(detail_n=detail_n)
-    blocks = to_block_kit(digest)
-    detail_sections = [b for b in blocks if "block_id" in b and b["block_id"].startswith("detail:")]
-    assert len(detail_sections) == detail_n
-    for section in detail_sections:
-        assert section["accessory"]["action_id"] == "mute"
+        assert "accessory" not in detail_section
 
 
 def test_to_block_kit_includes_reaction_hint_for_each_detail() -> None:
@@ -128,6 +113,12 @@ def test_to_block_kit_includes_reaction_hint_for_each_detail() -> None:
         and any("👍" in elem.get("text", "") for elem in b.get("elements", []))
     ]
     assert len(hint_contexts) == detail_n
+    for ctx in hint_contexts:
+        text = ctx["elements"][0]["text"]
+        assert "👍" in text
+        assert "👎" in text
+        assert "🔥" in text
+        assert "🔇" in text
 
 
 def test_to_block_kit_omits_glossary_context_when_empty() -> None:
@@ -177,7 +168,7 @@ def test_to_block_kit_skips_points_section_when_empty() -> None:
         generated_at=datetime(2026, 4, 28, 0, 0, 0, tzinfo=UTC),
     )
     blocks = to_block_kit(digest)
-    # detail ブロック群: section(header+button) → context(hint) → divider (points なし)
+    # detail ブロック群: section(header) → context(hint) → divider (points なし)
     # points 用の section が存在しないことを検証 (header section 以外に点のない section がない)
     detail_section = next(b for b in blocks if b.get("block_id", "").startswith("detail:"))
     detail_idx = blocks.index(detail_section)
