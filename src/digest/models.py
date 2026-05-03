@@ -92,21 +92,10 @@ class ThreadReplyFeedback(_StrictModel):
     raw: dict[str, Any] = {}
 
 
-class ButtonFeedback(_StrictModel):
-    """ダイジェスト内の特定メールに対するボタン操作 (ミュート等)。"""
-
-    kind: Literal["button"]
-    message_id: str
-    target_email_id: str  # button のみが email を対象とする
-    action_id: str
-    user: str
-    raw: dict[str, Any] = {}
-
-
 # TypeAlias は Python 3.11+ の明示的型エイリアス宣言。呼び出し側で list[Feedback] を維持するため。
 # Annotated + Field(discriminator="kind") で kind 値から具象型を Pydantic が振り分ける。
 Feedback: TypeAlias = Annotated[
-    ReactionFeedback | ThreadReplyFeedback | ButtonFeedback,
+    ReactionFeedback | ThreadReplyFeedback,
     Field(discriminator="kind"),
 ]
 

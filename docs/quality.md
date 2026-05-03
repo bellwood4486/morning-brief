@@ -67,7 +67,7 @@ And:   <追加の期待>
 |--------|-----------------|---------|
 | T1.5 fetch_unread | `test_fetch_unread_returns_emails_within_24h` | `tests/integration/test_gmail_client.py` |
 | T1.7 summarize | `test_summarize_returns_digest_with_3_to_5_tldrs` | `tests/integration/test_summarize.py` |
-| T1.8 formatter | `test_to_block_kit_includes_mute_button_with_sender` | `tests/unit/test_formatter.py` |
+| T1.8 formatter | `test_to_block_kit_includes_reaction_hint_for_each_detail` | `tests/unit/test_formatter.py` |
 
 ## 層3: 設計遵守ハーネス (アーキテクチャテスト)
 

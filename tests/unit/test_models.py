@@ -4,7 +4,6 @@ import pytest
 from pydantic import TypeAdapter, ValidationError
 
 from digest.models import (
-    ButtonFeedback,
     DetailItem,
     Digest,
     Email,
@@ -161,19 +160,6 @@ def test_thread_reply_feedback_valid() -> None:
     assert fb.text == "良い記事でした"
 
 
-def test_button_feedback_valid() -> None:
-    fb = ButtonFeedback(
-        kind="button",
-        message_id="ts123",
-        target_email_id="msg001",
-        action_id="mute_newsletter@example.com",
-        user="U1",
-    )
-    assert fb.kind == "button"
-    assert fb.target_email_id == "msg001"
-    assert fb.action_id == "mute_newsletter@example.com"
-
-
 def test_reaction_feedback_rejects_target_email_id() -> None:
     # ReactionFeedback は email を対象にしない仕様。extra="forbid" でフィールド追加を弾く。
     with pytest.raises(ValidationError):
@@ -186,13 +172,6 @@ def test_reaction_feedback_rejects_target_email_id() -> None:
         )
 
 
-def test_button_feedback_requires_target_email_id() -> None:
-    with pytest.raises(ValidationError):
-        ButtonFeedback(  # type: ignore[call-overload]
-            kind="button", message_id="ts123", action_id="mute_x", user="U1"
-        )
-
-
 def test_feedback_discriminator_dispatches_by_kind() -> None:
     # TypeAdapter は型エイリアスや union 型の validate_python を可能にする Pydantic ユーティリティ。
     adapter = TypeAdapter(Feedback)
@@ -200,17 +179,6 @@ def test_feedback_discriminator_dispatches_by_kind() -> None:
         {"kind": "reaction", "message_id": "ts123", "emoji": "thumbsup", "user": "U1"}
     )
     assert isinstance(reaction, ReactionFeedback)
-
-    button = adapter.validate_python(
-        {
-            "kind": "button",
-            "message_id": "ts123",
-            "target_email_id": "msg001",
-            "action_id": "mute_x",
-            "user": "U1",
-        }
-    )
-    assert isinstance(button, ButtonFeedback)
 
 
 def test_feedback_invalid_kind_rejected() -> None:
