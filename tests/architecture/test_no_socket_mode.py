@@ -1,6 +1,8 @@
 """Slack Socket Mode の使用は全ファイルで禁止 (docs/quality.md 層3)。
 
-常駐サーバ前提の機能を使わない方針による。Modal Cron が唯一の起点。
+Socket Mode は WebSocket で Slack からのイベントを受信するために常駐プロセスが必要。
+Modal はサーバーレス (関数の起動・終了ごとに実行) なため WebSocket 接続を維持できず、
+Modal Cron を唯一の起点とする設計と相容れない。
 """
 
 from pathlib import Path
