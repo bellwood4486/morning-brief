@@ -323,31 +323,32 @@ T1.1 (setup)
 5. T1.10 (合流)
 6. T1.12 → T1.13 → T1.14 (仕上げ)
 
-## Sprint 2: HITL ループ + ambient agent 観察
+## Sprint 2: Hermes 廃止 + 境界B 移行 + USER.md 自動更新ループ
 
-### 目的 (学習目的の本丸)
+### 目的
 
-フィードバックが Hermes の USER.md / skill に反映されるサイクルを作り、観察する。
+Hermes を廃止し (ADR-012)、PydanticAI + Logfire 統一 (ADR-013) + USER.md Git 管理 (ADR-014) へ移行する。
+feedback → USER.md 自動更新 → Git PR のサイクルを動かし、ambient agent の学習目的を達成する。
 
-### タスク (概要、Sprint 1 完了後に詳細化)
+### タスク
 
 #### 進捗
 
-- [ ] T2.1 `SlackNotifier.collect_feedback` の Sprint 2 強化 (ButtonFeedback 廃止 / 🔇 リアクション統一 / formatter からミュートボタン削除)
-- [ ] T2.2 `HermesBridge.inject_feedback` の本実装 (`#brief-to-hermes` への mrkdwn + JSON 同梱投函 / 案A / ADR-011)
-- [ ] T2.3 Hermes のスキル自動生成を観察するためのログ収集
-- [ ] T2.4 `scripts/weekly_report.py` (USER.md 差分、スキル数推移、フィードバック統計、コスト)
-- [ ] T2.5 `docs/observation.md` への観察ログ蓄積 (運用フェーズ)
+- [ ] T2.1 ButtonFeedback 廃止 / 🔇 リアクション統一 / formatter からミュートボタン削除
+- [ ] T2.2 Hermes 関連コード削除 (`hermes_bridge.py` / `seeds/newsletter_digest.md` / 関連テスト / アーキテクチャテスト調整)
+- [ ] T2.3 PydanticAI 導入 + LangSmith 削除 + Logfire 1 本化 (`observability.py` / `summarize.py` 書き換え)
+- [ ] T2.4 `state_store.py` + `user_md_updater.py` 新規実装 (feedback.jsonl 蓄積 + Gemini diff 生成)
+- [ ] T2.5 USER.md diff の GitHub PR 自動化 (Modal 内 gh CLI / GitHub Actions の選択は別 plan で設計)
 
 ### Sprint 2 完了基準
 
-T2.1 / T2.2 のみ。T2.3-T2.5 は別計画で扱う。
+T2.1 〜 T2.4 のみ。T2.5 は別計画で扱う。
 
-- [ ] T2.1 / T2.2 がマージされている
-- [ ] `just dry-run` で `#brief-to-hermes` への投函メッセージを Slack 上で目視確認できる (Hermes ホスト構築は不要 / 受け手不在のまま確認)
+- [ ] T2.1 〜 T2.4 がマージされている
+- [ ] `just dry-run` で Phase 1 (feedback.jsonl 追記) と Phase 5 (USER.md diff 生成) のログが出る
 - [ ] `just check` がグリーン
 
-> T2.3 (観察ログ収集) / T2.4 (`scripts/weekly_report.py`) / T2.5 (`docs/observation.md`) は Hermes ホスト構築後に別計画として着手する。
+> T2.5 (PR 自動化) は T2.4 完了後に別計画として着手する。
 
 ## Sprint 3: 拡張性検証
 
@@ -376,6 +377,6 @@ T2.1 / T2.2 のみ。T2.3-T2.5 は別計画で扱う。
 
 以下は Sprint 3 の Notifier 拡張とは別フェーズで扱う想定の課題:
 
-- **Hermes ホスト構築** (Oracle Cloud Always Free / fly.io / VPS): `#brief-to-hermes` の受け手となる Hermes を常駐させる
-- **プロンプト改善ループ**: Hermes が改善案を `#hermes-to-brief` に投函 → morning-brief が次回 Cron 起動時に取り込み → Modal Volume の `seeds/summarize_prompt.md` を上書き (Sprint 4 相当)
-- **観察ログ整備 (T2.3-T2.5)**: Hermes ホスト構築後に着手
+- **USER.md diff の PR 自動化 (T2.5)**: Modal 内 gh CLI または GitHub Actions で Gemini 生成 diff を GitHub PR として自動作成する
+- **プロンプト改善ループ**: `seeds/summarize_prompt.md` の改善案を Gemini が提案 → PR 化 → 人間マージ → Modal 自動デプロイ (Sprint 4 相当)
+- **観察ログ整備**: `scripts/weekly_report.py` でフィードバック統計 / USER.md 更新履歴 / LLM コストを週次 Slack 投稿

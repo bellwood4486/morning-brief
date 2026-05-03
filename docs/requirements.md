@@ -64,16 +64,16 @@
   - 各記事ブロックへの絵文字リアクション (👍/👎/🔥/🔇 等)
   - 🔇 リアクション (送信元ミュート意思表示)
   - スレッド返信 (自由記述)
-- 収集したフィードバックを Slack `#brief-to-hermes` 経由で Hermes (別ホスト常駐 / ADR-011) に渡し、USER.md / MEMORY.md の更新材料とする。
+- 収集したフィードバックは `feedback.jsonl` に追記し、Phase 5 の USER.md 更新サブルーチンで利用する。
 
 ### FR-5: 学習・成長
 
-- Hermes Agent を別ホストで常駐させ、Slack `#brief-to-hermes` 経由でフィードバックを受け取る (案A / ADR-011)。
-- 永続化は Hermes ホスト側で行う。morning-brief 側の Modal Volume には `state/last_digest.json` のみ保存。
+- 収集した feedback.jsonl を Gemini (PydanticAI 経由) に渡し、`seeds/USER.md` と `seeds/MEMORY.md` の差分を生成する (ADR-012 / ADR-013 / ADR-014)。
+- 生成した差分は GitHub PR として作成し、ユーザーがマージした時点で確定する。
 - フィードバックに応じて以下が更新されることを期待する:
-  - USER.md: 好むトピック / 嫌うトピックの記述 (Hermes ホスト側)
-  - MEMORY.md: 長期記憶 (Hermes ホスト側)
-  - スキル: 要約の癖、トピック分類、深掘り判断 (Hermes ホスト側)
+  - `seeds/USER.md`: 好むトピック / 嫌うトピックの記述
+  - `seeds/MEMORY.md`: 長期記憶
+- 更新履歴は Git log で追跡できる。誤った更新は `git revert` で戻せる。
 
 ### FR-6: ドライラン
 
@@ -115,8 +115,9 @@
 
 ### NFR-6: 可観測性
 
-- Sprint 2 以降、Hermes の学習が進んでいるかを定量的に観察できること。
-- USER.md の差分、スキル数、フィードバック量、LLM コストを週次でレポートできる仕組みを持つ。
+- Sprint 2 以降、USER.md の学習が進んでいるかを定量的に観察できること。
+- `git log seeds/USER.md` で更新履歴を確認できる。
+- フィードバック量・LLM コストを週次でレポートできる仕組みを持つ (Sprint 3 で `scripts/weekly_report.py` を実装)。
 
 ### NFR-7: 再現性 (OSS)
 
@@ -133,7 +134,7 @@
 - **NG-4**: 即時配信。届くたびに処理ではなく、1 日 1 バッチ。
 - **NG-5**: 週末の配信。週末分は月曜の通勤時にまとめて読む。
 - **NG-6**: モバイルアプリ開発。Slack の既存アプリを使う。
-- **NG-7**: 別の AI フレームワークでの実装。Hermes と Modal の組み合わせを学ぶこと自体が目的。
+- **NG-7**: 完全自律エージェント化。Python コードのオーケストレーションを agent loop に置き換えることは現時点では行わない (境界B 維持 / ADR-012)。
 - **NG-8**: 厳密な SLA。朝 06:30 に絶対届くことは保証しない。届かない日があっても許容。
 
 ## 6. 成功基準
@@ -146,12 +147,13 @@
 - リポジトリは秘匿情報を含まない状態で push できる。
 - `just check` がグリーン。
 
-### Sprint 2 完了基準 (T2.1 + T2.2 のみ)
+### Sprint 2 完了基準
 
-- フィードバックが `#brief-to-hermes` に投函されている (Hermes ホスト構築自体は別タスク / ADR-011)。
+- T2.1 〜 T2.4 がマージされている (T2.5 PR 自動化は別タスク)。
+- Phase 1 で feedback.jsonl にフィードバックが記録されている。
+- Phase 5 で `update_if_ready()` が動き、十分なフィードバックが蓄積したら Gemini が USER.md diff を生成する。
+- `just dry-run` で Phase 1 / Phase 5 のログが出る。
 - `just check` がグリーン。
-
-> Hermes ホスト側での反映観察 / `docs/observation.md` / `scripts/weekly_report.py` は Sprint 3+ で整備する。
 
 ### Sprint 3 完了基準
 
@@ -161,4 +163,4 @@
 ## 7. ステークホルダー
 
 - **オーナー / ユーザー**: 個人開発者 1 名
-- **想定読み手** (OSS): ambient agent / Modal / Hermes に関心のある開発者。参照実装として読む層。
+- **想定読み手** (OSS): ambient agent / Modal / PydanticAI に関心のある開発者。参照実装として読む層。

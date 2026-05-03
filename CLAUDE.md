@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`morning-brief` は、Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、平日朝 6:30 に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、Hermes Agent によって学習・成長します。
+`morning-brief` は、Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、平日朝 6:30 に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、フィードバックを元に Gemini が `seeds/USER.md` を更新することで学習・成長します。
 
 このファイルは Claude Code がこのリポジトリで作業する際の運用マニュアルです。設計判断の背景は `docs/design.md`、要件は `docs/requirements.md`、タスク分解は `docs/tasks.md`、検証手順は `docs/quality.md` を参照してください。
 
@@ -23,9 +23,10 @@
 | 実行タイミング | 平日 06:30 JST、前24h分を1バッチ |
 | LLM | Gemini 2.5 Flash (AI Studio API key) |
 | インフラ | Modal (Cron + Volume + Secrets) |
-| HITL | Slack リアクション/ボタン/スレッド返信、翌朝 polling |
+| HITL | Slack リアクション/スレッド返信、翌朝 polling |
 | 配信抽象 | `Notifier` Protocol (第一実装は `SlackNotifier`) |
-| プロンプト | 初期版は手書き seed → Hermes が育てる |
+| LLM ライブラリ | PydanticAI (ADR-013)。Logfire 1 本でトレース (ADR-010) |
+| プロンプト | 初期版は手書き seed → Gemini が USER.md diff を提案 → Git PR で育てる (ADR-014) |
 | 秘匿情報 | Modal Secrets。リポジトリには `.env.example`, `config.example.yaml` のみ |
 
 判断の経緯は `docs/design.md` の ADR セクション参照。
@@ -42,18 +43,20 @@ morning-brief/
 ├── src/digest/
 │   ├── __init__.py
 │   ├── gmail_client.py             # 受信専用 (送信に使わない)
-│   ├── summarize.py                # Gemini 呼び出し、プロンプトは seeds/ から読む
+│   ├── summarize.py                # Gemini 呼び出し (PydanticAI)、プロンプトは seeds/ から読む
 │   ├── formatter.py                # Block Kit 生成
 │   ├── feedback.py                 # 前日リアクション/返信のパース
-│   ├── hermes_bridge.py            # Hermes との橋渡し
+│   ├── state_store.py              # Modal Volume への読み書き (last_digest.json / feedback.jsonl)
+│   ├── user_md_updater.py          # Gemini で USER.md diff 生成 → GitHub PR 化 (T2.4/T2.5)
 │   └── notifiers/
 │       ├── __init__.py
 │       ├── base.py                 # Notifier Protocol
 │       └── slack.py                # 唯一の現状実装
 ├── seeds/
-│   ├── newsletter_digest.md        # Hermes 初期スキル定義
+│   ├── USER.md                     # ユーザープロファイル (Gemini diff → Git PR で育つ)
+│   ├── MEMORY.md                   # 長期記憶 (同上)
 │   ├── summarize_prompt.md         # 要約プロンプト初期版
-│   └── user_initial.md             # USER.md 初期コンテンツ
+│   └── user_initial.md             # USER.md 作成用テンプレ (不変)
 ├── scripts/
 │   ├── bootstrap_oauth.py          # 初回 Gmail refresh_token 取得 (ローカル実行)
 │   └── weekly_report.py            # 層4 学習観察レポート (Sprint 2)
@@ -69,7 +72,7 @@ morning-brief/
     ├── design.md                   # HOW it's built + ADRs
     ├── tasks.md                    # Sprint 分解
     ├── quality.md                  # 検証ハーネス定義
-    ├── agent-design.md             # Hermes エージェント仕様 (Sprint 1 中に作成)
+    ├── agent-design.md             # LLM サブルーチンと seeds 運用方針
     ├── setup.md                    # 運用手順 (Sprint 1 終盤に作成)
     └── observation.md              # 学習観察ログ (Sprint 1 完了時に追加)
 ```
@@ -78,12 +81,11 @@ morning-brief/
 
 1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット時に pre-commit hook で gitleaks が staged を自動スキャン (`uv run pre-commit install` 必須)。
 2. **Notifier 抽象を飛ばさない**: `slack_sdk` の import は `src/digest/notifiers/slack.py` 以外で禁止。アーキテクチャテストで検出する。
-3. **Hermes の永続状態に直接書き込まない**: `~/.hermes/` は Modal Volume 経由でのみアクセス。`hermes_bridge.py` を介す。
-4. **プロンプトをコードにベタ書きしない**: 全プロンプトは `seeds/*.md` から読み込む。
-5. **Vertex AI を使わない**: Gemini API 直叩き (`google-genai` SDK) で統一。理由は ADR-003。
-6. **送信に Gmail を使わない**: Gmail API は受信専用。配信は Slack 経由 (将来 Notifier 追加で拡張)。
-7. **常駐サーバ前提の機能を使わない**: Slack Socket Mode、Hermes 自前 cron は不可。Modal Cron が唯一の起点。
-8. **暗黙の決定をしない**: 設計に書かれていない判断が必要になったら、実装する前に確認を取る。
+3. **プロンプトをコードにベタ書きしない**: 全プロンプトは `seeds/*.md` から読み込む。
+4. **Vertex AI を使わない**: Gemini は PydanticAI 経由 (`google-genai` ではなく `pydantic-ai[google]`) で統一。理由は ADR-003 / ADR-013。
+5. **送信に Gmail を使わない**: Gmail API は受信専用。配信は Slack 経由 (将来 Notifier 追加で拡張)。
+6. **常駐サーバ前提の機能を使わない**: Slack Socket Mode は不可。Modal Cron が唯一の起点。
+7. **暗黙の決定をしない**: 設計に書かれていない判断が必要になったら、実装する前に確認を取る。
 
 ## 開発コマンド
 
