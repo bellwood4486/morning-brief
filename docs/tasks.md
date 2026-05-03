@@ -228,7 +228,7 @@ class Notifier(Protocol):
 **作業**: `seeds/` 配下 3 ファイル。
 
 - `seeds/summarize_prompt.md`: 要約プロンプト初期版
-- `seeds/newsletter_digest.md`: agentskills.io 形式のスキル定義
+- `seeds/newsletter_digest.md`: agentskills.io 形式のスキル定義 (Sprint 2 / ADR-012 で削除済み)
 - `seeds/user_initial.md`: USER.md の初期コンテンツ
 
 **注記**: これらの初期版はユーザーが叩き台を書く想定。Claude Code はテンプレを用意し、ユーザーがレビュー・修正する。
@@ -335,7 +335,7 @@ feedback → USER.md 自動更新 → Git PR のサイクルを動かし、ambie
 #### 進捗
 
 - [x] T2.1 ButtonFeedback 廃止 / 🔇 リアクション統一 / formatter からミュートボタン削除
-- [ ] T2.2 Hermes 関連コード削除 (`hermes_bridge.py` / `seeds/newsletter_digest.md` / 関連テスト / アーキテクチャテスト調整)
+- [x] T2.2 Hermes 関連コード削除 (`hermes_bridge.py` / `seeds/newsletter_digest.md` / 関連テスト / アーキテクチャテスト調整)
 - [ ] T2.3 PydanticAI 導入 + LangSmith 削除 + Logfire 1 本化 (`observability.py` / `summarize.py` 書き換え)
 - [ ] T2.4 `state_store.py` + `user_md_updater.py` 新規実装 (feedback.jsonl 蓄積 + Gemini diff 生成)
 - [ ] T2.5 USER.md diff の GitHub PR 自動化 (Modal 内 gh CLI / GitHub Actions の選択は別 plan で設計)

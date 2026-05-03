@@ -59,7 +59,6 @@ def digest_job(dry_run: bool = False) -> None:
         to_block_kit,
     )
     from digest.gmail_client import build_gmail_client
-    from digest.hermes_bridge import build_hermes_bridge
     from digest.notifiers.slack import build_slack_notifier
     from digest.observability import flush, init_observability, span
     from digest.seeds import load_seed
@@ -74,16 +73,9 @@ def digest_job(dry_run: bool = False) -> None:
     alerts = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.alerts_channel)
     gmail = build_gmail_client(os.environ["GMAIL_OAUTH_JSON"], cfg.gmail.processed_label)
     gemini = build_gemini_client(os.environ["GEMINI_API_KEY"])
-    hermes = build_hermes_bridge()
 
     try:
         with span("digest_job", run_id=run_id, dry_run=str(dry_run)):
-            with span("phase1.collect_feedback"):
-                try:
-                    _phase1_collect_feedback(notifier, hermes)
-                except Exception:
-                    logger.warning("Phase 1 (collect feedback) failed", exc_info=True)
-
             with span("phase2.fetch_emails"):
                 emails = _phase2_fetch_emails(gmail, cfg.gmail.label, cfg.gmail.lookback_hours)
 
@@ -109,18 +101,15 @@ def digest_job(dry_run: bool = False) -> None:
             text = digest_fallback_text(digest)
             with span("phase4.publish"):
                 try:
-                    posted = _phase4_publish(notifier, blocks, text, dry_run)
+                    _phase4_publish(notifier, blocks, text, dry_run)
                 except Exception as e:
                     logger.exception("Phase 4 (send) failed")
                     _alert(alerts, f"Phase 4 (send) failed: {e}")
                     _print_for_dry_run(blocks, digest)
                     return
 
-            if posted is not None:
-                hermes.set_last_message_id(posted.message_id)
-
             with span("phase5.postprocess"):
-                _phase5_postprocess(gmail, hermes, emails, dry_run)
+                _phase5_postprocess(gmail, emails, dry_run)
     finally:
         flush()
 
@@ -128,17 +117,6 @@ def digest_job(dry_run: bool = False) -> None:
 # --- Phase 関数 ---
 # 各 Phase はロジックを持たず、対応モジュールへの委譲のみを行う (design.md §2.1)。
 # 引数型は Any: modal_app.py は mypy/pyright 対象外 (CLAUDE.md §実装方針 参照)。
-
-
-def _phase1_collect_feedback(notifier: Any, hermes: Any) -> None:
-    message_id = hermes.get_last_message_id()
-    if message_id is None:
-        # 初回起動時は前日メッセージが存在しないため収集を skip する。
-        logger.info("Phase 1: no previous message_id, skipping feedback collection")
-        return
-    feedbacks = notifier.collect_feedback(message_id)
-    hermes.inject_feedback(feedbacks)
-    logger.info("Phase 1: collected %d feedbacks", len(feedbacks))
 
 
 def _phase2_fetch_emails(gmail: Any, label: str, lookback_hours: int) -> list[Any]:
@@ -175,9 +153,9 @@ def _phase4_publish_empty(notifier: Any, blocks: list[Any], text: str, dry_run: 
     logger.info("Phase 4: posted empty digest")
 
 
-def _phase5_postprocess(gmail: Any, hermes: Any, emails: list[Any], dry_run: bool) -> None:
+def _phase5_postprocess(gmail: Any, emails: list[Any], dry_run: bool) -> None:
     if dry_run:
-        logger.info("Phase 5: dry_run=True, skipping Gmail label and Hermes observe")
+        logger.info("Phase 5: dry_run=True, skipping Gmail label")
         return
     gmail.mark_processed(emails)
     logger.info("Phase 5: marked %d emails as processed", len(emails))
