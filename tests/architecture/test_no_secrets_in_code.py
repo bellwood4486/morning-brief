@@ -1,7 +1,7 @@
 """コミット対象ファイルに API キー風文字列が混入していないことを保証する (docs/quality.md 層3)。
 
-`just secrets` (gitleaks) と検出意図は重複するが、未インストール環境でも
-`just check` がフェイルできるよう pytest からも独立に検査する。
+pre-commit hook (gitleaks) と検出意図は重複するが、
+`just check` からも独立に検査する経路として保持する。
 """
 
 import re

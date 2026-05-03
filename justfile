@@ -41,12 +41,8 @@ test-arch:
 md-lint:
     uv run pymarkdown -c .pymarkdown.json scan --recurse --respect-gitignore .
 
-# 秘匿情報検出 (mise install で gitleaks が入る前提)
-secrets:
-    gitleaks detect --source . --no-banner --redact --config .gitleaks.toml
-
 # 一括検証 (commit 前に必ず実行)
-check: secrets lint fmt-check type test test-arch md-lint
+check: lint fmt-check type test test-arch md-lint
 
 # Modal ドライラン (送信せず最終 Markdown を stdout に出す)
 dry-run:
