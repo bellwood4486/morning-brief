@@ -340,7 +340,7 @@ just dry-run  # = uv run modal run modal_app.py::digest_job --dry-run
 stdout に TL;DR と詳細セクションが出力されること。エラーが出た場合は §14 を参照。
 
 ```bash
-just check  # 全検証を一括実行 (lint / fmt-check / type / test / test-arch / secrets / md-lint)
+just check  # 全検証を一括実行 (lint / fmt-check / type / test / test-arch / md-lint)
 ```
 
 ## 12. 本番投入 (Cron 有効化)
@@ -374,6 +374,7 @@ just run  # = uv run modal run modal_app.py::digest_job
 - [ ] 各記事ブロックに 👍/👎/🔥 リアクション促し + `[ミュート]` ボタンが付いている
 - [ ] `uv run pre-commit run --all-files` がグリーン (リポジトリに秘匿情報がない)
 - [ ] `just check` 全体がグリーン
+- [ ] GitHub Actions の `check` job がグリーン (PR 作成時に自動確認)
 
 実機での動作確認 (ドライランから本番投稿まで) はこのチェックリストで完了とみなす。
 
