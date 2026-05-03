@@ -2,4 +2,3 @@
 python = "3.11"
 uv = "latest"
 just = "latest"
-gitleaks = "latest"

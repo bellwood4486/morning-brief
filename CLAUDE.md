@@ -11,7 +11,7 @@
 
 - ランタイムは Modal Secrets。bootstrap 時のみローカルに `credentials.json` / `gmail_oauth.json`
 - env への直接アクセスは `src/digest/observability.py` に局所化、他は DI
-- secret パターン検査は `tests/architecture/test_no_secrets_in_code.py` + `.gitleaks.toml`
+- secret パターン検査は pre-commit hook (gitleaks) + `tests/architecture/test_no_secrets_in_code.py`。gitleaks の allowlist は `.gitleaks.toml` で管理
 
 ## 主要な決定事項
 
@@ -76,7 +76,7 @@ morning-brief/
 
 ## やってはいけないこと
 
-1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット時に pre-commit hook で gitleaks が staged を自動スキャン (`uv run pre-commit install` 必須)。手動検査は `just secrets`。
+1. **秘匿情報をコミットしない**: API キー、refresh token、bot token は Modal Secrets で管理。`.env` は `.gitignore` 済み。コミット時に pre-commit hook で gitleaks が staged を自動スキャン (`uv run pre-commit install` 必須)。
 2. **Notifier 抽象を飛ばさない**: `slack_sdk` の import は `src/digest/notifiers/slack.py` 以外で禁止。アーキテクチャテストで検出する。
 3. **Hermes の永続状態に直接書き込まない**: `~/.hermes/` は Modal Volume 経由でのみアクセス。`hermes_bridge.py` を介す。
 4. **プロンプトをコードにベタ書きしない**: 全プロンプトは `seeds/*.md` から読み込む。
@@ -90,7 +90,7 @@ morning-brief/
 ```bash
 # 前提ツールのインストール (初回のみ、mise が未インストールなら brew install mise を先に実行)
 mise trust   # リポジトリを信頼
-mise install # python, uv, just, gitleaks を一括導入
+mise install # python, uv, just を一括導入
 
 # 依存セットアップ
 just sync
@@ -104,7 +104,6 @@ just type          # mypy
 just test          # ユニットテスト (高速、外部依存なし)
 just test-int      # 統合テスト (モック前提)
 just test-arch     # 設計遵守テスト
-just secrets       # 秘匿情報検出 (gitleaks)
 
 # 一括検証 (コミット前に必ず実行)
 just check
@@ -137,7 +136,8 @@ just check
 
 - 層1: ruff (lint + format), mypy (型), pytest (unit + integration)
 - 層3: アーキテクチャテスト (境界破り検出)
-- secrets check: `just secrets` (gitleaks)
+
+secrets は pre-commit hook (gitleaks) がコミット前に自動スキャンします。
 
 各タスクの完了判定は `docs/tasks.md` の Given-When-Then 形式の受入条件で行います。**受入条件を満たすテストが通るまで、そのタスクは「完了」ではありません**。「動いた」「実装した」だけでは不十分です。
 
