@@ -87,6 +87,7 @@ cp config.example.yaml config.yaml
 | `gmail.lookback_hours` | `24` | 何時間前までのメールを対象にするか |
 | `slack.digest_channel` | `C0XXXXXXX` | ダイジェスト投稿先チャンネル ID (§6.4 参照) |
 | `slack.alerts_channel` | `C0YYYYYYY` | エラー通知先チャンネル ID (§6.4 参照) |
+| `slack.hermes_channel` | `C0ZZZZZZZ` | Hermes 連携用チャンネル ID (Sprint 2 で必須 / ADR-011 / §6.4 参照) |
 | `llm.model` | `gemini-2.5-flash` | 使用する Gemini モデル名 |
 | `schedule.cron` | `30 21 * * 1-5` | Modal Cron の設定 (UTC)。平日 06:30 JST |
 
@@ -153,15 +154,16 @@ uv run modal token new  # ブラウザが開いてログイン・トークン発
 
 ### 6.4 チャンネルの作成と Bot の招待
 
-Slack ワークスペースで以下の 2 チャンネルを作成する。
+Slack ワークスペースで以下の 3 チャンネルを作成する。
 
 - `#newsletter-digest`: ダイジェストの投稿先
 - `#alerts`: エラー通知先
+- `#brief-to-hermes`: Hermes 連携用 (Sprint 2 で必須 / ADR-011)
 
 各チャンネルで `/invite @<bot-name>` を実行して Bot を招待する。
 
 チャンネル ID は Slack の「チャンネル詳細」画面の一番下に表示される (`C0XXXXXXX` 形式)。
-`config.yaml` の `digest_channel` / `alerts_channel` にはこの ID を設定する。
+`config.yaml` の `digest_channel` / `alerts_channel` / `hermes_channel` にはそれぞれの ID を設定する。
 
 ### 6.5 Modal Secret の登録
 
@@ -371,7 +373,7 @@ just run  # = uv run modal run modal_app.py::digest_job
 
 - [ ] 平日 06:30 JST に `#newsletter-digest` にダイジェストが自動投稿される
 - [ ] ダイジェストは TL;DR + 詳細の 2 段構え
-- [ ] 各記事ブロックに 👍/👎/🔥 リアクション促し + `[ミュート]` ボタンが付いている
+- [ ] 各記事ブロックに 👍/👎/🔥/🔇 リアクション促しが付いている (Sprint 1 当初は `[ミュート]` ボタンも付いていたが Sprint 2 で削除)
 - [ ] `uv run pre-commit run --all-files` がグリーン (リポジトリに秘匿情報がない)
 - [ ] `just check` 全体がグリーン
 - [ ] GitHub Actions の `check` job がグリーン (PR 作成時に自動確認)

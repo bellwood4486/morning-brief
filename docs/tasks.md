@@ -333,18 +333,21 @@ T1.1 (setup)
 
 #### 進捗
 
-- [ ] T2.1 `feedback.collect_from_slack` 完全実装 (リアクション + ボタン + スレッド返信を統合)
-- [ ] T2.2 Hermes へのフィードバック反映ロジック (`hermes_bridge.inject_feedback` の本実装)
+- [ ] T2.1 `SlackNotifier.collect_feedback` の Sprint 2 強化 (ButtonFeedback 廃止 / 🔇 リアクション統一 / formatter からミュートボタン削除)
+- [ ] T2.2 `HermesBridge.inject_feedback` の本実装 (`#brief-to-hermes` への mrkdwn + JSON 同梱投函 / 案A / ADR-011)
 - [ ] T2.3 Hermes のスキル自動生成を観察するためのログ収集
 - [ ] T2.4 `scripts/weekly_report.py` (USER.md 差分、スキル数推移、フィードバック統計、コスト)
 - [ ] T2.5 `docs/observation.md` への観察ログ蓄積 (運用フェーズ)
 
 ### Sprint 2 完了基準
 
-- HITL フィードバックが Hermes に反映される経路が動いている。
-- `docs/observation.md` に 2 週間以上の観察ログがある。
-- `scripts/weekly_report.py` が日曜に Slack へ自動投稿する。
-- USER.md 初期状態と現在の差分が明確で、学習が起きている証跡がある。
+T2.1 / T2.2 のみ。T2.3-T2.5 は別計画で扱う。
+
+- [ ] T2.1 / T2.2 がマージされている
+- [ ] `just dry-run` で `#brief-to-hermes` への投函メッセージを Slack 上で目視確認できる (Hermes ホスト構築は不要 / 受け手不在のまま確認)
+- [ ] `just check` がグリーン
+
+> T2.3 (観察ログ収集) / T2.4 (`scripts/weekly_report.py`) / T2.5 (`docs/observation.md`) は Hermes ホスト構築後に別計画として着手する。
 
 ## Sprint 3: 拡張性検証
 
@@ -366,3 +369,13 @@ T1.1 (setup)
 
 - 選んだ拡張が、コア (`modal_app.py`, 各 Phase の制御フロー) を変更せずに動いている。
 - 拡張作業のログが `docs/observation.md` または別ファイルに残り、抽象が機能したか・しなかったかの評価がある。
+
+---
+
+### Sprint 3+ 想定 (本リスト外)
+
+以下は Sprint 3 の Notifier 拡張とは別フェーズで扱う想定の課題:
+
+- **Hermes ホスト構築** (Oracle Cloud Always Free / fly.io / VPS): `#brief-to-hermes` の受け手となる Hermes を常駐させる
+- **プロンプト改善ループ**: Hermes が改善案を `#hermes-to-brief` に投函 → morning-brief が次回 Cron 起動時に取り込み → Modal Volume の `seeds/summarize_prompt.md` を上書き (Sprint 4 相当)
+- **観察ログ整備 (T2.3-T2.5)**: Hermes ホスト構築後に着手
