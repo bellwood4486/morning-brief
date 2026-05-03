@@ -1,51 +1,76 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from typing import Any
+from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
-# 設計境界: google.genai の import はこのファイル限定 (アーキテクチャテストで強制予定)
-from google import genai
-from google.genai import types as genai_types
+from pydantic import BaseModel
+from pydantic_ai import Agent, RunContext
+from pydantic_ai.models.google import GoogleModel
+from pydantic_ai.providers.google import GoogleProvider
 
-from digest.models import Digest, Email
-from digest.observability import trace_llm
+from digest.models import DetailItem, Digest, Email, TldrItem
+
+
+class _DigestContent(BaseModel):
+    """Gemini が返す要約コンテンツ。generated_at は Python 側で付与するため除外。"""
+
+    tldr_items: list[TldrItem]
+    details: list[DetailItem]
+
+
+def _system_prompt(ctx: RunContext[str]) -> str:
+    return ctx.deps
+
+
+# モジュールレベルで Agent を定義。テスト時は _agent.override() で差し替える。
+# instrument=True: Logfire が設定済みの場合に全 LLM スパンを自動送信 (ADR-010/013)。
+_agent: Agent[str, _DigestContent] = Agent(
+    "google-gla:gemini-2.5-flash",
+    output_type=_DigestContent,
+    retries=2,
+    deps_type=str,
+    defer_model_check=True,
+    instrument=True,
+    instructions=_system_prompt,
+)
 
 
 @dataclass(frozen=True)
 class GeminiClient:
     """Gemini で英語メール群を日本語ダイジェストに要約する。"""
 
-    client: Any  # google.genai.Client。gmail_client と同じく Any で統一
+    api_key: str
+    model_name: str = field(default="gemini-2.5-flash")
 
-    @trace_llm("gemini.summarize")
     def summarize(
         self,
         emails: list[Email],
         prompt: str,
-        model: str = "gemini-2.5-flash",
+        model: str | None = None,
     ) -> Digest:
         """メール群を Gemini で日本語ダイジェストに変換する。
 
         prompt は seeds/summarize_prompt.md などを呼び出し側で読み込んで渡す。
         """
-        serialized = _serialize_emails(emails)
-        response = self.client.models.generate_content(
-            model=model,
-            contents=serialized,
-            config=genai_types.GenerateContentConfig(
-                system_instruction=prompt,
-                response_mime_type="application/json",
-            ),
+        google_model = GoogleModel(
+            model or self.model_name,
+            provider=GoogleProvider(api_key=self.api_key),
         )
-        text = response.text
-        if text is None:
-            raise RuntimeError("Gemini returned no text")
-        return Digest.model_validate_json(text)
+        result = _agent.run_sync(
+            _serialize_emails(emails),
+            deps=prompt,
+            model=google_model,
+        )
+        return Digest(
+            tldr_items=result.output.tldr_items,
+            details=result.output.details,
+            generated_at=datetime.now(UTC),
+        )
 
 
 def build_gemini_client(api_key: str) -> GeminiClient:
-    return GeminiClient(client=genai.Client(api_key=api_key))
+    return GeminiClient(api_key=api_key)
 
 
 def _serialize_emails(emails: list[Email]) -> str:

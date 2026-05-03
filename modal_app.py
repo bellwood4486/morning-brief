@@ -15,13 +15,12 @@ logger = logging.getLogger(__name__)
 image = (
     modal.Image.debian_slim(python_version="3.11")
     .pip_install(
-        "google-genai",
+        "pydantic-ai[google]",
         "slack-sdk",
         "google-api-python-client",
         "google-auth-oauthlib",
         "pydantic>=2",
         "pyyaml",
-        "langsmith>=0.2",
         "logfire>=2",
     )
     # digest パッケージを /root/src に配置し PYTHONPATH で参照できるようにする。
@@ -43,7 +42,6 @@ app = modal.App("morning-brief")
         modal.Secret.from_name("gmail-oauth"),
         modal.Secret.from_name("gemini-api-key"),
         modal.Secret.from_name("slack-bot-token"),
-        modal.Secret.from_name("langsmith"),
         modal.Secret.from_name("logfire"),
     ],
     volumes={"/root/.hermes": volume},
