@@ -20,6 +20,7 @@ class GmailConfig(_ConfigModel):
 class SlackConfig(_ConfigModel):
     digest_channel: str
     alerts_channel: str
+    userdoc_channel: str
 
 
 class LlmConfig(_ConfigModel):

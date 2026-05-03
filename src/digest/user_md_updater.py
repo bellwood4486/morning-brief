@@ -12,6 +12,7 @@ from pydantic_ai.providers.google import GoogleProvider
 from digest.models import ReactionFeedback, ThreadReplyFeedback
 from digest.seeds import load_seed
 from digest.state_store import load_feedbacks_from_path
+from digest.userdoc_store import UserdocStore
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +53,13 @@ class UserMdUpdater:
     def update_if_ready(
         self,
         feedback_log_path: Path,
-        seeds_dir: Path,
+        userdoc_store: UserdocStore,
         threshold: int = _FEEDBACK_THRESHOLD_DEFAULT,
-        dry_run: bool = False,
-    ) -> bool:
-        """フィードバック数が閾値以上なら Gemini で USER.md diff を生成する。
+    ) -> UserMdDiff | None:
+        """フィードバック数が閾値以上なら Gemini で USER.md / MEMORY.md diff を生成する。
 
-        Returns True if diff was generated, False if threshold not met.
+        Returns UserMdDiff if diff was generated, None if threshold not met.
+        副作用なし — Volume への書き込みは呼び出し側 (modal_app.py) の責務。
         """
         feedbacks = load_feedbacks_from_path(feedback_log_path)
         if len(feedbacks) < threshold:
@@ -67,16 +68,9 @@ class UserMdUpdater:
                 len(feedbacks),
                 threshold,
             )
-            return False
+            return None
 
-        user_md_path = seeds_dir / "USER.md"
-        if not user_md_path.exists():
-            logger.warning("Phase 5: USER.md not found in %s, skip update", seeds_dir)
-            return False
-
-        user_md = user_md_path.read_text(encoding="utf-8")
-        memory_md_path = seeds_dir / "MEMORY.md"
-        memory_md = memory_md_path.read_text(encoding="utf-8") if memory_md_path.exists() else ""
+        user_md, memory_md = userdoc_store.read()
 
         prompt = load_seed("user_md_update_prompt.md")
         user_message = _build_user_message(feedbacks, user_md, memory_md)
@@ -88,17 +82,8 @@ class UserMdUpdater:
         result = _diff_agent.run_sync(user_message, deps=prompt, model=google_model)
         diff = result.output
 
-        if dry_run:
-            logger.info(
-                "Phase 5: [dry_run] USER.md diff generated — %s",
-                diff.change_summary,
-            )
-        else:
-            logger.info(
-                "Phase 5: USER.md diff generated — %s (T2.5 will create PR)",
-                diff.change_summary,
-            )
-        return True
+        logger.info("Phase 5: USER.md diff generated — %s", diff.change_summary)
+        return diff
 
 
 def build_user_md_updater(api_key: str, model_name: str = "gemini-2.5-flash") -> UserMdUpdater:

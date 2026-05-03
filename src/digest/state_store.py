@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import TypeAdapter
@@ -63,6 +64,21 @@ class StateStore:
     def load_feedbacks(self) -> list[ReactionFeedback | ThreadReplyFeedback]:
         """feedback.jsonl に蓄積されたフィードバックを全件返す。"""
         return load_feedbacks_from_path(self.feedback_path)
+
+    def rotate_feedback(self, suffix: str = "") -> Path | None:
+        """feedback.jsonl を archived 名に原子的にリネームする。
+
+        archived 名: feedback.jsonl.archived.<UTC ISO8601 basic>[.suffix]
+        元ファイルが存在しなければ None を返す。
+        """
+        src = self.feedback_path
+        if not src.exists():
+            return None
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        suffix_part = f".{suffix}" if suffix else ""
+        dest = src.with_name(f"{src.name}.archived.{timestamp}{suffix_part}")
+        src.replace(dest)
+        return dest
 
 
 def build_state_store(base_dir: Path) -> StateStore:
