@@ -343,8 +343,8 @@ feedback → USER.md 自動更新 → Slack 通知のサイクルを動かし、
 ### Sprint 2 完了基準
 
 - [x] T2.1 〜 T2.5 がマージされている
-- [ ] `just dry-run` で Phase 1 (feedback.jsonl 追記) と Phase 5 (USER.md diff 生成ログ + dry_run 出力) が出る
-- [ ] `just check` がグリーン
+- [x] `just dry-run` で Phase 1 (feedback.jsonl 追記) と Phase 5 (USER.md diff 生成ログ + dry_run 出力) が出る
+- [x] `just check` がグリーン
 
 ---
 

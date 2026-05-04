@@ -310,13 +310,13 @@ label:Newsletter/Tech is:unread newer_than:1d
 `modal_app.py` は `create_if_missing=True` で起動時に Volume を自動作成するが、事前に明示的に作ることで確認がしやすい。
 
 ```bash
-uv run modal volume create morning-brief-hermes
+uv run modal volume create morning-brief-state
 ```
 
 ### 成功確認
 
 ```bash
-uv run modal volume list  # morning-brief-hermes が表示される
+uv run modal volume list  # morning-brief-state が表示される
 uv run modal secret list  # slack-bot-token / gmail-oauth / gemini-api-key の 3 つが表示される
 ```
 
