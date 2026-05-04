@@ -121,3 +121,52 @@ class TestLoadFeedbacks:
         assert len(loaded) == 2
         kinds = {fb.kind for fb in loaded}
         assert kinds == {"reaction", "thread_reply"}
+
+
+class TestRotateFeedback:
+    def test_returns_none_when_file_missing(self, tmp_path: Path) -> None:
+        store = StateStore(tmp_path)
+        assert store.rotate_feedback() is None
+
+    def test_renames_file_and_returns_new_path(self, tmp_path: Path) -> None:
+        store = StateStore(tmp_path)
+        store.append_feedback([_make_reaction()])
+        archived = store.rotate_feedback()
+        assert archived is not None
+        assert archived.exists()
+        assert "archived" in archived.name
+        assert not store.feedback_path.exists()
+
+    def test_archived_content_matches_original(self, tmp_path: Path) -> None:
+        store = StateStore(tmp_path)
+        store.append_feedback([_make_reaction("thumbsup")])
+        original_content = store.feedback_path.read_text(encoding="utf-8")
+        archived = store.rotate_feedback()
+        assert archived is not None
+        assert archived.read_text(encoding="utf-8") == original_content
+
+    def test_suffix_appended_to_archived_name(self, tmp_path: Path) -> None:
+        store = StateStore(tmp_path)
+        store.append_feedback([_make_reaction()])
+        archived = store.rotate_feedback(suffix="userdoc-snap")
+        assert archived is not None
+        assert archived.name.endswith(".userdoc-snap")
+
+    def test_no_suffix_no_trailing_dot(self, tmp_path: Path) -> None:
+        store = StateStore(tmp_path)
+        store.append_feedback([_make_reaction()])
+        archived = store.rotate_feedback()
+        assert archived is not None
+        assert not archived.name.endswith(".")
+
+    def test_multiple_rotations_produce_distinct_files(self, tmp_path: Path) -> None:
+        store = StateStore(tmp_path)
+        store.append_feedback([_make_reaction()])
+        archived1 = store.rotate_feedback(suffix="first")
+        store.append_feedback([_make_reply()])
+        archived2 = store.rotate_feedback(suffix="second")
+        assert archived1 is not None
+        assert archived2 is not None
+        assert archived1 != archived2
+        assert archived1.exists()
+        assert archived2.exists()

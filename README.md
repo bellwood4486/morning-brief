@@ -2,13 +2,13 @@
 
 [![Lint, Test & Secrets Scan](https://github.com/bellwood4486/morning-brief/actions/workflows/ci.yml/badge.svg)](https://github.com/bellwood4486/morning-brief/actions/workflows/ci.yml)
 
-Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、平日朝 6:30 (JST) に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、フィードバックを元に Gemini が `seeds/USER.md` を更新することで配信内容がユーザー好みへ徐々に最適化されていきます。
+Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、平日朝 6:30 (JST) に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、フィードバックを元に Gemini が USER.md を更新することで配信内容がユーザー好みへ徐々に最適化されていきます。
 
 ## 何が嬉しいか
 
 - **通勤時に英語ニュースレターを片手で消化できる** — TL;DR (3-5 本) を流し読みし、気になる記事だけ原文 URL に 1 タップ。
-- **リアクション 1 タップで自分仕様に育つ** — 👍 / 👎 / 🔥 / 🔇 リアクションでフィードバックが記録され、Gemini が USER.md の更新差分を提案する。差分は GitHub PR として届き、マージするだけで反映される。
-- **ambient agent + serverless + 自動学習ループの参照実装** — Modal Cron での日次バッチ、HITL の翌朝 polling、PydanticAI による LLM サブルーチン、Git による学習履歴管理を 1 リポジトリで読み解ける。
+- **リアクション 1 タップで自分仕様に育つ** — 👍 / 👎 / 🔥 / 🔇 リアクションでフィードバックが記録され、Gemini が USER.md の更新差分を生成する。差分は Slack の専用チャンネルに届き、本体は Modal Volume に保存される (Git 履歴には出ない)。
+- **ambient agent + serverless + 自動学習ループの参照実装** — Modal Cron での日次バッチ、HITL の翌朝 polling、PydanticAI による LLM サブルーチン、Modal Volume によるユーザープロファイル管理を 1 リポジトリで読み解ける。
 
 ## 想定読者
 
@@ -42,7 +42,8 @@ ambient agent / Modal / PydanticAI に関心のある開発者。日々の運用
 │           Notifier.send(blocks) → SlackNotifier                    │
 │           ↓                                                        │
 │  Phase 5: user_md_updater.update_if_ready()                        │
-│           └─ Gemini が seeds/USER.md diff 生成 → GitHub PR 化      │
+│           └─ Gemini が USER.md diff 生成 → Volume 直接更新         │
+│              → Slack 専用チャンネルに change_summary + diff 通知   │
 │              → gmail_client.mark_processed(emails)                 │
 └────────────────────────────────────────────────────────────────────┘
                                   │
@@ -102,9 +103,11 @@ morning-brief/
 │   ├── formatter.py      # Block Kit 生成
 │   ├── feedback.py       # リアクション/返信のパース
 │   ├── state_store.py    # Modal Volume への読み書き
-│   ├── user_md_updater.py # Gemini で USER.md diff 生成 → GitHub PR 化
+│   ├── user_md_updater.py # Gemini で USER.md diff 生成 (副作用なし)
+│   ├── userdoc_store.py  # Volume 上の USER.md / MEMORY.md 管理
+│   ├── userdoc_notifier.py # 更新内容を Slack 専用チャンネルに通知
 │   └── notifiers/        # Notifier Protocol + SlackNotifier
-├── seeds/                # 要約プロンプト・USER.md / MEMORY.md (Git 管理で育つ)
+├── seeds/                # 要約プロンプト・初期テンプレ (USER.md/MEMORY.md は Volume で管理)
 └── docs/                 # requirements / design / tasks / agent-design / setup
 ```
 

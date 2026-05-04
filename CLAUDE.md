@@ -26,7 +26,7 @@
 | HITL | Slack リアクション/スレッド返信、翌朝 polling |
 | 配信抽象 | `Notifier` Protocol (第一実装は `SlackNotifier`) |
 | LLM ライブラリ | PydanticAI (ADR-013)。Logfire 1 本でトレース (ADR-010) |
-| プロンプト | 初期版は手書き seed → Gemini が USER.md diff を提案 → Git PR で育てる (ADR-014) |
+| USER.md 管理 | Modal Volume 直接管理。Gemini diff → Volume 書き込み → Slack 専用チャンネル通知 (ADR-015) |
 | 秘匿情報 | Modal Secrets。リポジトリには `.env.example`, `config.example.yaml` のみ |
 
 判断の経緯は `docs/design.md` の ADR セクション参照。
@@ -47,16 +47,18 @@ morning-brief/
 │   ├── formatter.py                # Block Kit 生成
 │   ├── feedback.py                 # 前日リアクション/返信のパース
 │   ├── state_store.py              # Modal Volume への読み書き (last_digest.json / feedback.jsonl)
-│   ├── user_md_updater.py          # Gemini で USER.md diff 生成 → GitHub PR 化 (T2.4/T2.5)
+│   ├── user_md_updater.py          # Gemini で USER.md diff 生成、副作用なし (T2.4/T2.5)
+│   ├── userdoc_store.py            # Volume 上の USER.md / MEMORY.md 管理 (bootstrap/read/write_with_snapshot)
+│   ├── userdoc_notifier.py         # USER.md 更新内容を Slack 専用チャンネルに通知
 │   └── notifiers/
 │       ├── __init__.py
 │       ├── base.py                 # Notifier Protocol
 │       └── slack.py                # 唯一の現状実装
 ├── seeds/
-│   ├── USER.md                     # ユーザープロファイル (Gemini diff → Git PR で育つ)
-│   ├── MEMORY.md                   # 長期記憶 (同上)
 │   ├── summarize_prompt.md         # 要約プロンプト初期版
-│   └── user_initial.md             # USER.md 作成用テンプレ (不変)
+│   ├── user_initial.md             # USER.md 初期テンプレ (不変。初回 bootstrap でコピー)
+│   ├── memory_initial.md           # MEMORY.md 初期テンプレ (不変。初回 bootstrap でコピー)
+│   └── user_md_update_prompt.md    # USER.md 更新用プロンプト
 ├── scripts/
 │   ├── bootstrap_oauth.py          # 初回 Gmail refresh_token 取得 (ローカル実行)
 │   └── weekly_report.py            # 層4 学習観察レポート (Sprint 2)

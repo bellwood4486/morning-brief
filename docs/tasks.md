@@ -327,8 +327,8 @@ T1.1 (setup)
 
 ### 目的
 
-Hermes を廃止し (ADR-012)、PydanticAI + Logfire 統一 (ADR-013) + USER.md Git 管理 (ADR-014) へ移行する。
-feedback → USER.md 自動更新 → Git PR のサイクルを動かし、ambient agent の学習目的を達成する。
+Hermes を廃止し (ADR-012)、PydanticAI + Logfire 統一 (ADR-013) + USER.md Volume 管理 (ADR-015) へ移行する。
+feedback → USER.md 自動更新 → Slack 通知のサイクルを動かし、ambient agent の学習目的を達成する。
 
 ### タスク
 
@@ -338,17 +338,62 @@ feedback → USER.md 自動更新 → Git PR のサイクルを動かし、ambie
 - [x] T2.2 Hermes 関連コード削除 (`hermes_bridge.py` / `seeds/newsletter_digest.md` / 関連テスト / アーキテクチャテスト調整)
 - [x] T2.3 PydanticAI 導入 + LangSmith 削除 + Logfire 1 本化 (`observability.py` / `summarize.py` 書き換え)
 - [x] T2.4 `state_store.py` + `user_md_updater.py` 新規実装 (feedback.jsonl 蓄積 + Gemini diff 生成)
-- [ ] T2.5 USER.md diff の GitHub PR 自動化 (Modal 内 gh CLI / GitHub Actions の選択は別 plan で設計)
+- [x] T2.5 USER.md / MEMORY.md の Modal Volume 直接更新 + Slack 通知 (ADR-015; GitHub PR フローを廃止)
 
 ### Sprint 2 完了基準
 
-T2.1 〜 T2.4 のみ。T2.5 は別計画で扱う。
-
-- [ ] T2.1 〜 T2.4 がマージされている
-- [ ] `just dry-run` で Phase 1 (feedback.jsonl 追記) と Phase 5 (USER.md diff 生成) のログが出る
+- [x] T2.1 〜 T2.5 がマージされている
+- [ ] `just dry-run` で Phase 1 (feedback.jsonl 追記) と Phase 5 (USER.md diff 生成ログ + dry_run 出力) が出る
 - [ ] `just check` がグリーン
 
-> T2.5 (PR 自動化) は T2.4 完了後に別計画として着手する。
+---
+
+#### T2.5 USER.md / MEMORY.md の Modal Volume 直接更新 + Slack 通知
+
+**作業**:
+
+- `src/digest/userdoc_store.py` 新規実装 (bootstrap / read / write_with_snapshot + スナップショット世代管理)
+- `src/digest/userdoc_notifier.py` 新規実装 (unified diff + Block Kit 組み立て)
+- `seeds/memory_initial.md` 新規 (空テンプレ)
+- `src/digest/user_md_updater.py`: `update_if_ready` signature 変更 (`userdoc_store` 引数追加、戻り値 `UserMdDiff | None`、`dry_run` 引数削除)
+- `src/digest/state_store.py`: `rotate_feedback()` 追加
+- `modal_app.py`: bootstrap 呼び出しと Phase 5 結線
+- `config.example.yaml`: `slack.userdoc_channel` 追加
+
+**受入条件**:
+
+- Given: Modal Volume が空 (USER.md / MEMORY.md なし)
+  When: `digest_job` を実行
+  Then: Volume に `USER.md` が `seeds/user_initial.md` の内容で、`MEMORY.md` が `seeds/memory_initial.md` の内容で生成される
+  And: 2 回目の実行では既存ファイルが上書きされない (再起動冪等)
+
+- Given: `feedback.jsonl` に 5 件以上の feedback / Volume に USER.md あり
+  When: `update_if_ready(feedback_log_path, userdoc_store)` を呼ぶ
+  Then: 戻り値は `UserMdDiff` インスタンス
+  And: Volume の USER.md / MEMORY.md / feedback.jsonl に副作用が発生しない
+
+- Given: feedback < 5 件
+  When: `update_if_ready(...)` を呼ぶ
+  Then: `None` を返す
+
+- Given: `diff.user_md_content` / `diff.memory_md_content` が現行 Volume の内容と byte-equal
+  When: `userdoc_store.write_with_snapshot(...)` を呼ぶ
+  Then: 戻り値が `None`。Volume と snapshots に副作用なし
+
+- Given: feedback ≥ 5 / Gemini diff が現行と異なる / Volume 書き込み成功
+  When: `digest_job(dry_run=False)` を実行
+  Then: Volume の USER.md / MEMORY.md が更新される
+  And: `state/snapshots/` に新しいスナップショットが追加される
+  And: Slack の userdoc_channel に change_summary + unified diff が投稿される
+  And: `feedback.jsonl` が archived 名にリネームされる
+
+- Given: 同条件で dry_run=True
+  When: `digest_job(dry_run=True)` を実行
+  Then: stdout に change_summary と diff hunks の冒頭が出力される
+  And: Volume / snapshot / Slack / feedback.jsonl は変更されない
+
+- Given: `just check` を実行
+  Then: lint / fmt / type / test / test-arch / md-lint がすべてグリーン
 
 ## Sprint 3: 拡張性検証
 
@@ -377,6 +422,5 @@ T2.1 〜 T2.4 のみ。T2.5 は別計画で扱う。
 
 以下は Sprint 3 の Notifier 拡張とは別フェーズで扱う想定の課題:
 
-- **USER.md diff の PR 自動化 (T2.5)**: Modal 内 gh CLI または GitHub Actions で Gemini 生成 diff を GitHub PR として自動作成する
-- **プロンプト改善ループ**: `seeds/summarize_prompt.md` の改善案を Gemini が提案 → PR 化 → 人間マージ → Modal 自動デプロイ (Sprint 4 相当)
+- **プロンプト改善ループ**: `seeds/summarize_prompt.md` の改善案を Gemini が提案 → Slack 通知 → 人間が手動適用 (Sprint 4 相当)
 - **観察ログ整備**: `scripts/weekly_report.py` でフィードバック統計 / USER.md 更新履歴 / LLM コストを週次 Slack 投稿

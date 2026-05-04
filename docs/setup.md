@@ -87,6 +87,7 @@ cp config.example.yaml config.yaml
 | `gmail.lookback_hours` | `24` | 何時間前までのメールを対象にするか |
 | `slack.digest_channel` | `C0XXXXXXX` | ダイジェスト投稿先チャンネル ID (§6.4 参照) |
 | `slack.alerts_channel` | `C0YYYYYYY` | エラー通知先チャンネル ID (§6.4 参照) |
+| `slack.userdoc_channel` | `C0ZZZZZZZ` | USER.md 更新通知先チャンネル ID (§6.4 参照) |
 | `llm.model` | `gemini-2.5-flash` | 使用する Gemini モデル名 |
 | `schedule.cron` | `30 21 * * 1-5` | Modal Cron の設定 (UTC)。平日 06:30 JST |
 
@@ -102,28 +103,19 @@ just lint  # config.yaml に構文エラーがないこと
 
 本番稼働前に以下を準備する。
 
-### `seeds/USER.md` の初期作成
+### `seeds/user_initial.md` の記入
 
-`seeds/user_initial.md` を参考に `seeds/USER.md` を作成して commit する。5 つのセクション (興味分野 / 嫌うトピック / 読み方の癖 / ミュート済み送信元 / 英語レベル) をすべて埋めること。
-
-```bash
-cp seeds/user_initial.md seeds/USER.md
-# テキストエディタで seeds/USER.md を編集してから commit
-git add seeds/USER.md
-git commit -m "chore: initialize USER.md"
-```
-
-Sprint 2 以降は Gemini が feedback.jsonl を元に差分を提案し、GitHub PR でユーザーがマージすることで育っていく ([agent-design.md](agent-design.md) §4.2)。
-
-### `seeds/MEMORY.md` の初期作成
-
-初期は空ファイルを commit する。
+`seeds/user_initial.md` を開き、5 つのセクション (興味分野 / 嫌うトピック / 読み方の癖 / ミュート済み送信元 / 英語レベル) をすべて埋めること。
 
 ```bash
-touch seeds/MEMORY.md
-git add seeds/MEMORY.md
-git commit -m "chore: initialize MEMORY.md"
+# テキストエディタで seeds/user_initial.md を編集
+git add seeds/user_initial.md
+git commit -m "chore: fill user_initial.md with personal preferences"
 ```
+
+`digest_job` 起動時に `userdoc_store.bootstrap_if_missing()` が Volume に USER.md が無ければこのファイルをコピーする (ADR-015)。すでに Volume に USER.md が存在する場合は上書きされない。
+
+Sprint 2 以降は Gemini が feedback.jsonl を元に差分を生成し、Modal Volume に直接書き込んで Slack に通知する ([agent-design.md](agent-design.md) §4.2)。
 
 ### `seeds/summarize_prompt.md`
 
@@ -172,15 +164,16 @@ uv run modal token new  # ブラウザが開いてログイン・トークン発
 
 ### 6.4 チャンネルの作成と Bot の招待
 
-Slack ワークスペースで以下の 2 チャンネルを作成する。
+Slack ワークスペースで以下の 3 チャンネルを作成する。
 
 - `#newsletter-digest`: ダイジェストの投稿先
 - `#alerts`: エラー通知先
+- `#userdoc-updates`: USER.md / MEMORY.md の更新通知先 (change_summary + unified diff が届く)
 
 各チャンネルで `/invite @<bot-name>` を実行して Bot を招待する。
 
 チャンネル ID は Slack の「チャンネル詳細」画面の一番下に表示される (`C0XXXXXXX` 形式)。
-`config.yaml` の `digest_channel` / `alerts_channel` にそれぞれの ID を設定する。
+`config.yaml` の `digest_channel` / `alerts_channel` / `userdoc_channel` にそれぞれの ID を設定する。
 
 ### 6.5 Modal Secret の登録
 

@@ -6,6 +6,7 @@ gmail:
 slack:
   digest_channel: "C0XXXXXXX"  # ダイジェスト投稿先 (Slack のチャンネル ID)
   alerts_channel: "C0YYYYYYY"  # エラー通知先 (Slack のチャンネル ID)
+  userdoc_channel: "C0ZZZZZZZ"  # USER.md 更新通知先 (Slack のチャンネル ID)
 
 llm:
   model: "gemini-2.5-flash"

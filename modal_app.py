@@ -66,6 +66,8 @@ def digest_job(dry_run: bool = False) -> None:
     from digest.state_store import build_state_store
     from digest.summarize import build_gemini_client
     from digest.user_md_updater import build_user_md_updater
+    from digest.userdoc_notifier import build_userdoc_notifier
+    from digest.userdoc_store import build_userdoc_store
 
     run_id = uuid.uuid4().hex[:12]
     init_observability(dry_run, run_id)
@@ -73,13 +75,18 @@ def digest_job(dry_run: bool = False) -> None:
     cfg = Config.load(Path("/root/config.yaml"))
     notifier = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.digest_channel)
     alerts = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.alerts_channel)
+    userdoc_slack = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.userdoc_channel)
     gmail = build_gmail_client(os.environ["GMAIL_OAUTH_JSON"], cfg.gmail.processed_label)
     gemini = build_gemini_client(os.environ["GEMINI_API_KEY"])
     state_store = build_state_store(_VOLUME_MOUNT)
+    userdoc_store = build_userdoc_store(_VOLUME_MOUNT)
     user_md_updater = build_user_md_updater(
         api_key=os.environ["GEMINI_API_KEY"],
         model_name=cfg.llm.model,
     )
+    userdoc_notifier = build_userdoc_notifier(userdoc_slack)
+
+    userdoc_store.bootstrap_if_missing(_SEEDS_DIR)
 
     try:
         with span("digest_job", run_id=run_id, dry_run=str(dry_run)):
@@ -124,7 +131,17 @@ def digest_job(dry_run: bool = False) -> None:
                     return
 
             with span("phase5.postprocess"):
-                _phase5_postprocess(gmail, emails, dry_run, state_store, user_md_updater)
+                _phase5_postprocess(
+                    gmail,
+                    emails,
+                    dry_run,
+                    state_store,
+                    userdoc_store,
+                    user_md_updater,
+                    userdoc_notifier,
+                    alerts,
+                    run_id,
+                )
     finally:
         flush()
 
@@ -186,7 +203,11 @@ def _phase5_postprocess(
     emails: list[Any],
     dry_run: bool,
     state_store: Any,
+    userdoc_store: Any,
     user_md_updater: Any,
+    userdoc_notifier: Any,
+    alerts: Any,
+    run_id: str,
 ) -> None:
     if dry_run:
         logger.info("Phase 5: dry_run=True, skipping Gmail label")
@@ -194,11 +215,44 @@ def _phase5_postprocess(
         gmail.mark_processed(emails)
         logger.info("Phase 5: marked %d emails as processed", len(emails))
 
-    user_md_updater.update_if_ready(
+    diff = user_md_updater.update_if_ready(
         feedback_log_path=state_store.feedback_path,
-        seeds_dir=_SEEDS_DIR,
-        dry_run=dry_run,
+        userdoc_store=userdoc_store,
     )
+    if diff is None:
+        return
+
+    if dry_run:
+        _print_userdoc_dry_run(diff)
+        return
+
+    before_user, before_memory = userdoc_store.read()
+
+    snapshots = userdoc_store.write_with_snapshot(
+        new_user_md=diff.user_md_content,
+        new_memory_md=diff.memory_md_content,
+    )
+    if snapshots is None:
+        logger.info("Phase 5: USER.md unchanged after diff, skip notify")
+        return
+    snap_user, snap_memory = snapshots
+    logger.info("Phase 5: wrote USER.md/MEMORY.md, snapshot=%s", snap_user.name)
+
+    try:
+        userdoc_notifier.notify(
+            diff=diff,
+            before_user=before_user,
+            after_user=diff.user_md_content,
+            before_memory=before_memory,
+            after_memory=diff.memory_md_content,
+            snapshot_user_path=snap_user,
+            snapshot_memory_path=snap_memory,
+        )
+        state_store.rotate_feedback(suffix=f"userdoc-{snap_user.stem}")
+        logger.info("Phase 5: userdoc notify sent, feedback rotated")
+    except Exception as e:
+        logger.warning("Phase 5 userdoc notify failed: %s", e, exc_info=True)
+        _alert(alerts, f"Phase 5 userdoc notify failed: {e}")
 
 
 def _alert(alerts: Any, message: str) -> None:
@@ -217,3 +271,14 @@ def _print_for_dry_run(blocks: list[Any], digest: Any = None) -> None:
     if digest is not None:
         print("=== Digest (JSON) ===")
         print(digest.model_dump_json(indent=2))
+
+
+def _print_userdoc_dry_run(diff: Any) -> None:
+    print("=== UserMdDiff (dry_run) ===")
+    print(f"change_summary: {diff.change_summary}")
+    print(f"USER.md (head):\n{diff.user_md_content[:500]}")
+    if len(diff.user_md_content) > 500:
+        print("... (truncated)")
+    print(f"MEMORY.md (head):\n{diff.memory_md_content[:200]}")
+    if len(diff.memory_md_content) > 200:
+        print("... (truncated)")
