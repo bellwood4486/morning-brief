@@ -29,7 +29,6 @@ image = (
     .env({"PYTHONPATH": "/root/src"})
     .add_local_dir("src", remote_path="/root/src")
     .add_local_dir("seeds", remote_path="/root/seeds")
-    .add_local_file("config.yaml", remote_path="/root/config.yaml")
 )
 volume = modal.Volume.from_name("morning-brief-state", create_if_missing=True)
 app = modal.App("morning-brief")
@@ -72,7 +71,7 @@ def digest_job(dry_run: bool = False) -> None:
     run_id = uuid.uuid4().hex[:12]
     init_observability(dry_run, run_id)
 
-    cfg = Config.load(Path("/root/config.yaml"))
+    cfg = Config.load(_VOLUME_MOUNT / "config.yaml")
     notifier = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.digest_channel)
     alerts = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.alerts_channel)
     userdoc_slack = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.userdoc_channel)
