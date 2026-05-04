@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "schedule": ["before 6am on monday"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["pydantic", "pydantic-ai"],
+      "groupName": "pydantic"
+    },
+    {
+      "matchPackageNames": [
+        "google-api-python-client",
+        "google-auth-oauthlib"
+      ],
+      "groupName": "google-client"
+    },
+    {
+      "matchPackageNames": [
+        "ruff",
+        "mypy",
+        "pyright",
+        "pytest",
+        "pytest-mock",
+        "types-pyyaml",
+        "pymarkdownlnt",
+        "pre-commit"
+      ],
+      "groupName": "dev-tools"
+    }
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on the first day of the month"]
+  }
+}

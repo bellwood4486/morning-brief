@@ -364,7 +364,47 @@ uv run modal app list  # morning-brief が deployed 表示される
 just run  # = uv run modal run modal_app.py::digest_job
 ```
 
-## 13. Sprint 1 完了基準のチェックリスト
+## 13. CI/CD 自動化
+
+### 13.1 GitHub Secrets の登録 (自動デプロイに必要)
+
+main への push (PR merge 含む) が `check` job を通過すると、自動で `modal deploy` が走る。
+そのために Modal トークンを GitHub Secrets に登録する。
+
+Modal トークンを確認する:
+
+```bash
+cat ~/.modal.toml
+```
+
+`token_id` と `token_secret` をメモし、以下の手順で GitHub に登録する:
+
+1. GitHub リポジトリの **Settings → Secrets and variables → Actions** を開く
+2. **New repository secret** でそれぞれ登録:
+   - 名前 `MODAL_TOKEN_ID`: `~/.modal.toml` の `token_id` の値
+   - 名前 `MODAL_TOKEN_SECRET`: `~/.modal.toml` の `token_secret` の値
+
+### 成功確認
+
+PR を merge し、GitHub Actions で `deploy` job が緑になることを確認する。
+[Modal ダッシュボード](https://modal.com/apps) でデプロイ済みリビジョンの commit SHA が一致すること。
+
+### 13.2 Renovate のセットアップ (依存自動更新)
+
+[Renovate GitHub App](https://github.com/apps/renovate) をこの repo に install すると、
+`renovate.json` の設定に従って依存更新 PR を自動作成する。
+
+- **毎週月曜 UTC 06:00 前**: 各ライブラリの最新版 PR (pydantic 系・Google クライアント・dev ツールはグループ化)
+- **毎月 1 日 UTC 06:00 前**: `uv.lock` 全体更新 PR (lockFileMaintenance)
+
+#### install 手順
+
+1. [https://github.com/apps/renovate](https://github.com/apps/renovate) → **Install**
+2. **Only select repositories** でこの repo を選択 → **Install**
+
+install 後、Renovate が自動でオンボーディング PR を作成する。内容を確認して merge すると有効化される。
+
+## 14. Sprint 1 完了基準のチェックリスト
 
 以下がすべて満たされれば Sprint 1 完了。
 
@@ -377,7 +417,7 @@ just run  # = uv run modal run modal_app.py::digest_job
 
 実機での動作確認 (ドライランから本番投稿まで) はこのチェックリストで完了とみなす。
 
-## 14. トラブルシューティング / FAQ
+## 15. トラブルシューティング / FAQ
 
 ### OAuth 同意画面に「メールの送信」と表示される
 
