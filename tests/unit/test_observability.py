@@ -55,7 +55,7 @@ def test_flush_noop_without_logfire(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_logging_handler_attached_when_logfire_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """LOGFIRE_TOKEN がある時、root logger に LogfireLoggingHandler(WARNING) が attach される。"""
+    """LOGFIRE_TOKEN がある時、root logger に LogfireLoggingHandler(INFO) が attach される。"""
     import importlib
     import logging
 
@@ -76,7 +76,7 @@ def test_logging_handler_attached_when_logfire_enabled(
 
         attached = [h for h in root.handlers if isinstance(h, logfire.LogfireLoggingHandler)]
         assert len(attached) == 1
-        assert attached[0].level == logging.WARNING
+        assert attached[0].level == logging.INFO
     finally:
         for h in root.handlers[:]:
             if isinstance(h, logfire.LogfireLoggingHandler) and h not in handlers_before:

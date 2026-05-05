@@ -21,6 +21,12 @@ def init_observability(dry_run: bool, run_id: str) -> None:
     """Logfire を初期化する。クレデンシャル未設定時は no-op。"""
     global _logfire_initialized
 
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        force=True,
+    )
+
     token = os.environ.get("LOGFIRE_TOKEN")
     if token:
         logfire.configure(
@@ -30,7 +36,7 @@ def init_observability(dry_run: bool, run_id: str) -> None:
         )
         root = logging.getLogger()
         if not any(isinstance(h, logfire.LogfireLoggingHandler) for h in root.handlers):
-            root.addHandler(logfire.LogfireLoggingHandler(level=logging.WARNING))
+            root.addHandler(logfire.LogfireLoggingHandler(level=logging.INFO))
         logfire.info("observability initialized", run_id=run_id)
         _logfire_initialized = True
         logger.info("Logfire enabled run_id=%s", run_id)
@@ -47,6 +53,9 @@ def span(name: str, **attributes: Any) -> Generator[Any, None, None]:
 
 
 def flush() -> None:
-    """Logfire スパンを強制フラッシュする。Modal short-lived 関数の終了直前に呼ぶ。"""
+    """Logfire スパンを強制フラッシュし exporter を閉じる。
+    Modal short-lived 関数の終了直前に呼ぶ。
+    """
     if _logfire_initialized:
         logfire.force_flush()
+        logfire.shutdown()
