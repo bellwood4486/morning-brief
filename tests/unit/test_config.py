@@ -17,7 +17,6 @@ def test_load_example_yaml() -> None:
     assert cfg.slack.digest_channel == "C0XXXXXXX"
     assert cfg.slack.alerts_channel == "C0YYYYYYY"
     assert cfg.llm.model == "gemini-2.5-flash"
-    assert cfg.schedule.cron == "30 21 * * 1-5"
 
 
 def test_unknown_key_is_rejected(tmp_path: Path) -> None:
@@ -32,9 +31,7 @@ def test_unknown_key_is_rejected(tmp_path: Path) -> None:
         "  digest_channel: '#d'\n"
         "  alerts_channel: '#a'\n"
         "llm:\n"
-        "  model: m\n"
-        "schedule:\n"
-        "  cron: '0 0 * * *'\n",
+        "  model: m\n",
         encoding="utf-8",
     )
     with pytest.raises(ValidationError):
@@ -52,9 +49,7 @@ def test_missing_required_field_is_rejected(tmp_path: Path) -> None:
         "  digest_channel: '#d'\n"
         "  alerts_channel: '#a'\n"
         "llm:\n"
-        "  model: m\n"
-        "schedule:\n"
-        "  cron: '0 0 * * *'\n",
+        "  model: m\n",
         encoding="utf-8",
     )
     with pytest.raises(ValidationError):
