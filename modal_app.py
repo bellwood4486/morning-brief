@@ -39,7 +39,7 @@ _SEEDS_DIR = Path("/root/seeds")
 
 @app.function(
     image=image,
-    schedule=modal.Cron("30 21 * * 1-5"),  # 平日 06:30 JST (= UTC 21:30 前日)
+    schedule=modal.Cron("30 21 * * *"),  # 毎日 06:30 JST (= UTC 21:30 前日)
     secrets=[
         modal.Secret.from_name("gmail-oauth"),
         modal.Secret.from_name("gemini-api-key"),

@@ -12,7 +12,7 @@
 
 ### Sprint 1 完了基準 (全体)
 
-- 平日朝 06:30 JST に `#newsletter-digest` にダイジェストが自動投稿される。
+- 毎朝 06:30 JST に `#newsletter-digest` にダイジェストが自動投稿される。
 - ダイジェストは TL;DR + 詳細の 2 段構え。
 - 各記事ブロックに 👍/👎/🔥 リアクション促し + ミュートボタンが付いている。
 - リポジトリに秘匿情報が含まれていない (`uv run pre-commit run --all-files` がグリーン)。
@@ -206,7 +206,7 @@ class Notifier(Protocol):
 - `modal.App("morning-brief")`
 - Modal Image (依存パッケージインストール、`seeds/` を image にコピー)
 - Modal Volume (`/root/.hermes/`) と Secrets (`gmail-oauth`, `gemini-api-key`, `slack-bot-token`) のマウント
-- `@app.function(schedule=modal.Cron("30 21 * * 1-5"))` で `digest_job` 定義
+- `@app.function(schedule=modal.Cron("30 21 * * *"))` で `digest_job` 定義
 - `digest_job(dry_run: bool = False)` の中で Phase 1-5 を順に実行
 - 各 Phase の例外は catch、`#alerts` 通知、後続 Phase の継続判断
 - `dry_run=True` の場合、Phase 4 の Slack 送信を stdout への print に置き換え
