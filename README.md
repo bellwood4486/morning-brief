@@ -2,7 +2,7 @@
 
 [![Lint, Test & Secrets Scan](https://github.com/bellwood4486/morning-brief/actions/workflows/ci.yml/badge.svg)](https://github.com/bellwood4486/morning-brief/actions/workflows/ci.yml)
 
-Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、平日朝 6:30 (JST) に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、フィードバックを元に Gemini が USER.md を更新することで配信内容がユーザー好みへ徐々に最適化されていきます。
+Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、毎朝 6:30 (JST) に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、フィードバックを元に Gemini が USER.md を更新することで配信内容がユーザー好みへ徐々に最適化されていきます。
 
 ## 何が嬉しいか
 
@@ -18,7 +18,7 @@ ambient agent / Modal / PydanticAI に関心のある開発者。日々の運用
 
 ```text
 ┌────────────────────────────────────────────────────────────────────┐
-│  Modal Cron (21:30 UTC = 06:30 JST, 平日のみ)                       │
+│  Modal Cron (21:30 UTC = 06:30 JST, 毎日)                           │
 └────────────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
@@ -127,7 +127,6 @@ morning-brief/
 - 完全自動化しない — HITL ループを回すこと自体が学習目的の一部
 - 全文翻訳しない — 要約のみ。深く読みたければ原文 URL へ
 - マルチユーザー化しない — 個人 1 名運用
-- 週末配信しない — 平日 06:30 JST のみ
 
 ## License
 

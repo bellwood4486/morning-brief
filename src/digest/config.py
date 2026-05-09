@@ -27,15 +27,10 @@ class LlmConfig(_ConfigModel):
     model: str
 
 
-class ScheduleConfig(_ConfigModel):
-    cron: str
-
-
 class Config(_ConfigModel):
     gmail: GmailConfig
     slack: SlackConfig
     llm: LlmConfig
-    schedule: ScheduleConfig
 
     @classmethod
     def load(cls, path: Path) -> Config:

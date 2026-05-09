@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-`morning-brief` は、Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、平日朝 6:30 に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、フィードバックを元に Gemini が `seeds/USER.md` を更新することで学習・成長します。
+`morning-brief` は、Gmail に届く英語のテック系ニュースレターを Gemini で日本語要約し、毎朝 6:30 に Slack へ配信する個人向け ambient agent です。Modal 上でサーバーレスに動作し、フィードバックを元に Gemini が `seeds/USER.md` を更新することで学習・成長します。
 
 このファイルは Claude Code がこのリポジトリで作業する際の運用マニュアルです。設計判断の背景は `docs/design.md`、要件は `docs/requirements.md`、タスク分解は `docs/tasks.md`、検証手順は `docs/quality.md` を参照してください。
 
@@ -20,7 +20,7 @@
 | 配信媒体 | Slack (個人用 workspace 新規作成) |
 | 対象判別 | Gmail ラベル `Newsletter/Tech` |
 | 要約構造 | 2段構え (TL;DR 3-5本 + 詳細1メール1ブロック) |
-| 実行タイミング | 平日 06:30 JST、前24h分を1バッチ |
+| 実行タイミング | 毎日 06:30 JST、前24h分を1バッチ |
 | LLM | Gemini 2.5 Flash (AI Studio API key) |
 | インフラ | Modal (Cron + Volume + Secrets) |
 | HITL | Slack リアクション/スレッド返信、翌朝 polling |
