@@ -445,6 +445,22 @@ if diff is not None:
 - `git log seeds/USER.md` で学習の証跡を追えなくなる。Logfire の `phase5.write_userdoc` span と Slack 投稿で代替する。
 - `seeds/USER.md` / `seeds/MEMORY.md` はリポジトリから削除。`user_initial.md` / `memory_initial.md` だけが不変テンプレとしてリポジトリに残る。
 
+### ADR-016: Slack チャンネルを 2 本に集約し operations channel を導入する
+
+**ステータス**: *Adopted*
+
+**決定**: 従来の `digest_channel` / `alerts_channel` / `userdoc_channel` の 3 本構成を `digest_channel` / `operations_channel` の 2 本に集約する。`alerts_channel` を廃止し、エラー通知・実行サマリ・USER.md 更新通知をすべて `operations_channel` に集約する。毎日 1 実行 = 1 サマリメッセージを終了時に必ず投稿し、「動いているか」を一目で確認できるようにする。
+
+**背景**: 3 チャンネル構成では「今日動いたか」を確認するために digest / alerts / userdoc の 3 箇所を横断する必要があった。また、Phase 1/2 のエラーは当時どの Slack チャンネルにも通知されず黙って死ぬ問題があった。さらに `#newsletter-digest` に「本日は対象メールなし」が混ざりダイジェストフィードとして見づらかった。
+
+**実行サマリの仕様**: `src/digest/operations_notifier.py` の `OperationsRunSummaryNotifier` が担当。`RunSummary(status: ok|empty|error, digest_count, digest_message_id, userdoc_updated, errors: list[PhaseError])` を `digest_job` の finally ブロックで必ず投稿する。dry_run=True 時は stdout に出力して Slack には投稿しない。
+
+**トレードオフ**:
+
+- 正常系 (digest あり) の日は `#newsletter-digest` と `#operations` の両方に投稿が入る (digest が届いた事実は operations でも確認可能)。
+- Modal Function タイムアウト (`timeout=600`) や SIGKILL の場合は Python の `finally` が走らず operations 通知も飛ばない。この境界では Modal ダッシュボード側の死活監視に依存する。
+- Modal/Logfire 実行ページへの URL リンクは後続対応。`RunSummary.digest_message_id` フィールドを保持しており、後から拡張しやすい。
+
 ## 5. 拡張ポイント
 
 ### 5.1 配信先の追加 (Notifier)
@@ -472,15 +488,17 @@ if diff is not None:
 
 | 障害箇所 | 期待挙動 |
 |---------|---------|
-| Phase 1 失敗 (フィードバック取得) | warning ログ。Phase 2 以降は継続 (今日のダイジェストは届く)。 |
-| Phase 2 が空 (対象メールなし) | `#newsletter-digest` に「本日は対象メールなし」を投稿。Phase 5 はスキップ。 |
-| Phase 3 失敗 (Gemini エラー) | `#alerts` に通知。再実行は手動。 |
-| Phase 4 失敗 (Slack 送信エラー) | `#alerts` に通知。Gemini 出力は Modal の stdout にログとして残す。 |
-| Phase 5 Volume 書き込み失敗 | `#alerts` に通知。feedback.jsonl は rotate しない (翌日の同等性チェックで skip)。 |
-| Phase 5 Slack 通知失敗 | Volume は更新済み。`#alerts` に通知。feedback.jsonl は rotate しない。翌日の `write_with_snapshot` が同等性チェックで None を返し二重通知を防ぐ。 |
+| Phase 1 失敗 (フィードバック取得) | warning ログ + `#operations` サマリの errors に記録。Phase 2 以降は継続 (今日のダイジェストは届く)。 |
+| Phase 2 が空 (対象メールなし) | `#newsletter-digest` には何も投稿しない。`#operations` に「対象メールなし」のサマリを投稿。Phase 5 はスキップ。 |
+| Phase 2 失敗 (Gmail エラー) | `#operations` サマリの errors に記録して早期終了。Phase 5 はスキップ。 |
+| Phase 3 失敗 (Gemini エラー) | `#operations` サマリに error ステータスと詳細を投稿。再実行は手動。 |
+| Phase 4 失敗 (Slack 送信エラー) | `#operations` サマリに error ステータスを投稿。Gemini 出力は Modal の stdout にログとして残す。 |
+| Phase 5 Volume 書き込み失敗 | `#operations` サマリの errors に記録 (status は ok のまま)。feedback.jsonl は rotate しない (翌日の同等性チェックで skip)。 |
+| Phase 5 Slack 通知失敗 | Volume は更新済み。`#operations` サマリの errors に記録。feedback.jsonl は rotate しない。翌日の `write_with_snapshot` が同等性チェックで None を返し二重通知を防ぐ。 |
+| Modal Function タイムアウト (600s) / SIGKILL | Python の `finally` が走らないため `#operations` 通知も飛ばない。Modal ダッシュボード側の死活監視に依存する。 |
 | Modal Function 自体が起動しない | 検知不可 (Modal の死活監視に依存)。割り切り。 |
 
-`#alerts` channel への通知も Slack なので、Slack 自体が落ちると気付けない。これは許容する (NG: 厳密な SLA)。
+`#operations` channel への通知も Slack なので、Slack 自体が落ちると気付けない。これは許容する (NG: 厳密な SLA)。
 
 ## 7. 命名・型方針
 
