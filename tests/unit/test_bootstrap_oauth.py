@@ -16,6 +16,7 @@ def test_register_calls_subprocess_with_correct_args() -> None:
             "modal",
             "secret",
             "create",
+            "--force",
             "gmail-oauth",
             f"GMAIL_OAUTH_JSON={payload}",
         ],

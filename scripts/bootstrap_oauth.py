@@ -30,6 +30,7 @@ def register_modal_secret(secret_name: str, json_payload: str) -> None:
             "modal",
             "secret",
             "create",
+            "--force",
             secret_name,
             f"{_ENV_VAR_NAME}={json_payload}",
         ],
@@ -39,7 +40,8 @@ def register_modal_secret(secret_name: str, json_payload: str) -> None:
         print(
             "自動登録に失敗しました。uv run modal token new 済みか確認してから、"
             f"gmail_oauth.json を cat して手動で登録してください:\n"
-            f'  uv run modal secret create {secret_name} {_ENV_VAR_NAME}="$(cat gmail_oauth.json)"',
+            f"  uv run modal secret create --force {secret_name}"
+            f' {_ENV_VAR_NAME}="$(cat gmail_oauth.json)"',
             file=sys.stderr,
         )
         raise SystemExit(1)
