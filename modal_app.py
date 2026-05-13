@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -52,15 +52,15 @@ _SEEDS_DIR = Path("/root/seeds")
 def digest_job(dry_run: bool = False) -> None:
     # Modal コンテナ内でのみ解決できるため、ここで遅延 import する。
     from digest.config import Config
-    from digest.formatter import (
-        digest_fallback_text,
-        empty_digest_blocks,
-        empty_digest_fallback_text,
-        to_block_kit,
-    )
+    from digest.formatter import digest_fallback_text, to_block_kit
     from digest.gmail_client import build_gmail_client
     from digest.notifiers.slack import build_slack_notifier
     from digest.observability import flush, init_observability, span
+    from digest.operations_notifier import (
+        PhaseError,
+        RunSummary,
+        build_operations_run_summary_notifier,
+    )
     from digest.seeds import load_seed
     from digest.state_store import build_state_store
     from digest.summarize import build_gemini_client
@@ -73,8 +73,9 @@ def digest_job(dry_run: bool = False) -> None:
 
     cfg = Config.load(_VOLUME_MOUNT / "config.yaml")
     notifier = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.digest_channel)
-    alerts = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.alerts_channel)
-    userdoc_slack = build_slack_notifier(os.environ["SLACK_BOT_TOKEN"], cfg.slack.userdoc_channel)
+    operations_slack = build_slack_notifier(
+        os.environ["SLACK_BOT_TOKEN"], cfg.slack.operations_channel
+    )
     gmail = build_gmail_client(os.environ["GMAIL_OAUTH_JSON"], cfg.gmail.processed_label)
     gemini = build_gemini_client(os.environ["GEMINI_API_KEY"])
     state_store = build_state_store(_VOLUME_MOUNT)
@@ -83,9 +84,12 @@ def digest_job(dry_run: bool = False) -> None:
         api_key=os.environ["GEMINI_API_KEY"],
         model_name=cfg.llm.model,
     )
-    userdoc_notifier = build_userdoc_notifier(userdoc_slack)
+    userdoc_notifier = build_userdoc_notifier(operations_slack)
+    ops_summary_notifier = build_operations_run_summary_notifier(operations_slack)
 
     userdoc_store.bootstrap_if_missing(_SEEDS_DIR)
+
+    summary = RunSummary(status="error")
 
     try:
         with span("digest_job", run_id=run_id, dry_run=str(dry_run)):
@@ -93,17 +97,19 @@ def digest_job(dry_run: bool = False) -> None:
                 try:
                     _phase1_collect_feedback(notifier, state_store, dry_run)
                 except Exception as e:
+                    summary.errors.append(PhaseError("phase1", str(e)))
                     logger.warning("Phase 1 (collect_feedback) failed: %s", e, exc_info=True)
 
             with span("phase2.fetch_emails"):
-                emails = _phase2_fetch_emails(gmail, cfg.gmail.label, cfg.gmail.lookback_hours)
+                try:
+                    emails = _phase2_fetch_emails(gmail, cfg.gmail.label, cfg.gmail.lookback_hours)
+                except Exception as e:
+                    summary.errors.append(PhaseError("phase2", str(e)))
+                    logger.exception("Phase 2 (fetch_emails) failed")
+                    return
 
             if not emails:
-                generated_at = datetime.now(UTC)
-                blocks = empty_digest_blocks(generated_at=generated_at)
-                text = empty_digest_fallback_text(generated_at)
-                with span("phase4.publish_empty"):
-                    _phase4_publish_empty(notifier, blocks, text, dry_run)
+                summary.status = "empty"
                 return
 
             with span("phase3.summarize"):
@@ -112,8 +118,8 @@ def digest_job(dry_run: bool = False) -> None:
                         gemini, emails, load_seed("summarize_prompt.md"), cfg.llm.model
                     )
                 except Exception as e:
+                    summary.errors.append(PhaseError("phase3", str(e)))
                     logger.exception("Phase 3 (summarize) failed")
-                    _alert(alerts, f"Phase 3 (summarize) failed: {e}")
                     return
 
             blocks = to_block_kit(digest)
@@ -123,14 +129,17 @@ def digest_job(dry_run: bool = False) -> None:
                     posted = _phase4_publish(notifier, blocks, text, dry_run)
                     if posted is not None:
                         state_store.set_last_message_id(posted.message_id)
+                        summary.digest_message_id = posted.message_id
+                    summary.digest_count = len(emails)
+                    summary.status = "ok"
                 except Exception as e:
+                    summary.errors.append(PhaseError("phase4", str(e)))
                     logger.exception("Phase 4 (send) failed")
-                    _alert(alerts, f"Phase 4 (send) failed: {e}")
                     _print_for_dry_run(blocks, digest)
                     return
 
             with span("phase5.postprocess"):
-                _phase5_postprocess(
+                userdoc_updated, phase5_errors = _phase5_postprocess(
                     gmail,
                     emails,
                     dry_run,
@@ -138,10 +147,12 @@ def digest_job(dry_run: bool = False) -> None:
                     userdoc_store,
                     user_md_updater,
                     userdoc_notifier,
-                    alerts,
                     run_id,
                 )
+                summary.userdoc_updated = userdoc_updated
+                summary.errors.extend(phase5_errors)
     finally:
+        ops_summary_notifier.notify(summary, dry_run=dry_run)
         flush()
 
 
@@ -188,15 +199,6 @@ def _phase4_publish(notifier: Any, blocks: list[Any], text: str, dry_run: bool) 
     return posted
 
 
-def _phase4_publish_empty(notifier: Any, blocks: list[Any], text: str, dry_run: bool) -> None:
-    if dry_run:
-        _print_for_dry_run(blocks)
-        logger.info("Phase 4: dry_run=True, empty digest not sent")
-        return
-    notifier.send(blocks, text=text)
-    logger.info("Phase 4: posted empty digest")
-
-
 def _phase5_postprocess(
     gmail: Any,
     emails: list[Any],
@@ -205,9 +207,11 @@ def _phase5_postprocess(
     userdoc_store: Any,
     user_md_updater: Any,
     userdoc_notifier: Any,
-    alerts: Any,
     run_id: str,
-) -> None:
+) -> tuple[bool, list[Any]]:
+    """Phase 5 を実行し (userdoc_updated, errors) を返す。"""
+    errors: list[Any] = []
+
     if dry_run:
         logger.info("Phase 5: dry_run=True, skipping Gmail label")
     else:
@@ -219,11 +223,11 @@ def _phase5_postprocess(
         userdoc_store=userdoc_store,
     )
     if diff is None:
-        return
+        return False, errors
 
     if dry_run:
         _print_userdoc_dry_run(diff)
-        return
+        return False, errors
 
     before_user, before_memory = userdoc_store.read()
 
@@ -233,7 +237,7 @@ def _phase5_postprocess(
     )
     if snapshots is None:
         logger.info("Phase 5: USER.md unchanged after diff, skip notify")
-        return
+        return False, errors
     snap_user, snap_memory = snapshots
     logger.info("Phase 5: wrote USER.md/MEMORY.md, snapshot=%s", snap_user.name)
 
@@ -249,19 +253,19 @@ def _phase5_postprocess(
         )
         state_store.rotate_feedback(suffix=f"userdoc-{snap_user.stem}")
         logger.info("Phase 5: userdoc notify sent, feedback rotated")
+        return True, errors
     except Exception as e:
         logger.warning("Phase 5 userdoc notify failed: %s", e, exc_info=True)
-        _alert(alerts, f"Phase 5 userdoc notify failed: {e}")
+        errors.append(_make_phase_error("phase5.userdoc_notify", e))
+        return True, errors
 
 
-def _alert(alerts: Any, message: str) -> None:
-    try:
-        alerts.send(
-            [{"type": "section", "text": {"type": "mrkdwn", "text": message}}],
-            text=f"[morning-brief alert] {message}",
-        )
-    except Exception:
-        logger.error("Failed to send alert: %s", message, exc_info=True)
+def _make_phase_error(phase: str, exc: Exception) -> Any:
+    # PhaseError を遅延 import せずに生成するためのヘルパ。
+    # modal_app.py は型チェック対象外のため Any を返す。
+    from digest.operations_notifier import PhaseError
+
+    return PhaseError(phase=phase, message=str(exc))
 
 
 def _print_for_dry_run(blocks: list[Any], digest: Any = None) -> None:

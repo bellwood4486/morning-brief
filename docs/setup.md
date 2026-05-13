@@ -97,8 +97,7 @@ just config-edit
 | `gmail.processed_label` | `Newsletter/Tech/Processed` | 処理済みを示すラベル名 |
 | `gmail.lookback_hours` | `24` | 何時間前までのメールを対象にするか |
 | `slack.digest_channel` | `C0XXXXXXX` | ダイジェスト投稿先チャンネル ID (§6.4 参照) |
-| `slack.alerts_channel` | `C0YYYYYYY` | エラー通知先チャンネル ID (§6.4 参照) |
-| `slack.userdoc_channel` | `C0ZZZZZZZ` | USER.md 更新通知先チャンネル ID (§6.4 参照) |
+| `slack.operations_channel` | `C0YYYYYYY` | 運用観察用チャンネル ID (§6.4 参照) — 実行サマリ・エラー・USER.md 更新通知 |
 | `llm.model` | `gemini-2.5-flash` | 使用する Gemini モデル名 |
 
 チャンネル ID の取得方法は §6.4 を参照すること。
@@ -175,16 +174,15 @@ uv run modal token new  # ブラウザが開いてログイン・トークン発
 
 ### 6.4 チャンネルの作成と Bot の招待
 
-Slack ワークスペースで以下の 3 チャンネルを作成する。
+Slack ワークスペースで以下の 2 チャンネルを作成する。
 
-- `#newsletter-digest`: ダイジェストの投稿先
-- `#alerts`: エラー通知先
-- `#userdoc-updates`: USER.md / MEMORY.md の更新通知先 (change_summary + unified diff が届く)
+- `#newsletter-digest`: ダイジェストの投稿先 (ダイジェストがある日のみ投稿される)
+- `#operations`: 運用観察用 — 毎日の実行サマリ・エラー通知・USER.md 更新通知が集約される
 
 各チャンネルで `/invite @<bot-name>` を実行して Bot を招待する。
 
 チャンネル ID は Slack の「チャンネル詳細」画面の一番下に表示される (`C0XXXXXXX` 形式)。
-`config.yaml` の `digest_channel` / `alerts_channel` / `userdoc_channel` にそれぞれの ID を設定する。
+`config.yaml` の `digest_channel` / `operations_channel` にそれぞれの ID を設定する。
 
 ### 6.5 Modal Secret の登録
 
